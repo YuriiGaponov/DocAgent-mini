@@ -26,6 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     logger.info('Начало запуска DocAgent‑mini')
     try:
+        logger.success('DocAgent‑mini успешно запущен')
         yield
     except Exception as e:
         logger.critical(f'Ошибка запуска DocAgent‑mini: {e}')
@@ -43,5 +44,3 @@ app = FastAPI(
     lifespan=lifespan
 )
 """Экземпляр FastAPI — веб‑сервер приложения."""
-
-logger.success('DocAgent‑mini успешно запущен')
