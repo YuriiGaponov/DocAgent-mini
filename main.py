@@ -44,3 +44,4 @@ app = FastAPI(
     lifespan=lifespan
 )
 """Экземпляр FastAPI — веб‑сервер приложения."""
+logger.debug(f'Приложение DocAgent‑mini инициализировано: {app}')
