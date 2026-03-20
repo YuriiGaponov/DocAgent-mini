@@ -6,7 +6,6 @@
 экземпляра настроек с учётом переменных окружения и значений по умолчанию.
 """
 
-
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -20,12 +19,19 @@ class Settings(BaseSettings):
 
     Загружает параметры конфигурации из файла .env с возможностью
     переопределения через переменные окружения. Содержит настройки
-    режима отладки.
+    режима отладки и логирования.
     """
 
     # Режим отладки
     DEBUG: bool = False
     """bool: Флаг режима отладки приложения. По умолчанию — False."""
+
+    # Настройки логирования
+    LOG_DIR: str = 'logs'
+    """str: Директория для хранения логов приложения. По умолчанию — 'logs'."""
+
+    LOG_FILENAME: str = 'app_log.log'
+    """str: Имя файла логов. По умолчанию — 'app_log.log'."""
 
     model_config = SettingsConfigDict(
         env_file=(BASE_DIR / '.env'),
