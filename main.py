@@ -12,6 +12,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 
 from src.logger import logger
+from src.api import router
 from src.settings import Settings, get_settings
 
 
@@ -44,4 +45,8 @@ app = FastAPI(
     lifespan=lifespan
 )
 """Экземпляр FastAPI — веб‑сервер приложения."""
+
 logger.debug(f'Приложение DocAgent‑mini инициализировано: {app}')
+
+app.include_router(router)
+logger.trace(f'Подключен роутер: {router}')
