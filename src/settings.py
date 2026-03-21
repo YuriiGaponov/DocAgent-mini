@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     # Настройки RAG-системы
     DOC_PATH: str = f'{BASE_DIR}/docs'
-    SAFE_FILENAME_PATTERN: str = r"^[a-z0-9_-]+\.md$"
+    ALLOWED_FILENAME_PATTERN: str = r"^[a-z0-9_-]+\.md$"
 
     model_config = SettingsConfigDict(
         env_file=(BASE_DIR / '.env'),

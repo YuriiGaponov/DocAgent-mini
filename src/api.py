@@ -46,7 +46,7 @@ async def health():
 # Будет удален из релизной версии.
 from fastapi import Depends
 from src.settings import Settings, get_settings
-from src.tools import get_docs
+from src.rag import RAGSystem
 
 @router.get("/")
 async def temp_endpoint(settings: Settings = Depends(get_settings)):
@@ -54,4 +54,5 @@ async def temp_endpoint(settings: Settings = Depends(get_settings)):
     Временный эндпоинт для тестирования функционала.
     Будет удален из релизной версии.
     """
-    return await get_docs(settings)
+    rag_sys = RAGSystem(settings)
+    return await rag_sys.get_docs()
