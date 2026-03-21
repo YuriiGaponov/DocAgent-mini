@@ -40,3 +40,18 @@ async def health():
         return {"status": "healthy"}
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
+
+
+# Временный функционал для целей разработки.
+# Будет удален из релизной версии.
+from fastapi import Depends
+from src.settings import Settings, get_settings
+from src.tools import get_docs
+
+@router.get("/")
+async def temp_endpoint(settings: Settings = Depends(get_settings)):
+    """
+    Временный эндпоинт для тестирования функционала.
+    Будет удален из релизной версии.
+    """
+    return await get_docs(settings)

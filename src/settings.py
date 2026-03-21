@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     LOG_FILENAME: str = 'app_log.log'
     """str: Имя файла логов. По умолчанию — 'app_log.log'."""
 
+    # Настройки RAG-системы
+    DOC_PATH: str = f'{BASE_DIR}/docs'
+    SAFE_FILENAME_PATTERN: str = r"^[a-z0-9_-]+\.md$"
+
     model_config = SettingsConfigDict(
         env_file=(BASE_DIR / '.env'),
         env_file_encoding='utf-8',
