@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 
+from src.models import DocumentData, DocumentMetadata
 from src.settings import Settings
 
 
@@ -132,21 +133,16 @@ class DocumentationFileLoader:
 
 class DocumentationFileReader:
 
-    def get_file_metadata(self, file_path: Path):
+    def get_file_metadata(self, file_path: Path) -> DocumentMetadata:
         name = Path(file_path).name
         type = Path(file_path).suffix
         stats = file_path.stat()
         creation_time = datetime.fromtimestamp(stats.st_birthtime)
         modification_time = datetime.fromtimestamp(stats.st_mtime)
         size = stats.st_size
-        return {
-            'name': name,
-            'type': type,
-            'path': file_path,
-            'creation_time': creation_time,
-            'modification_time': modification_time,
-            'size': size
-        }
+        return DocumentMetadata(
+            name, type, file_path, creation_time, modification_time, size
+        )
 
     async def read_file(self, doc_path: Path):
         with open(doc_path, 'r', encoding='utf-8') as file:
@@ -158,11 +154,11 @@ class DocumentationFileReader:
         return chunks
 
     async def get_file_data(self, file_path: Path):
-        return {
-            'file_metadata': self.get_file_metadata(file_path),
-            'file_text': await self.read_file(file_path),
-            'chunked_text': await self.get_chunks(file_path)
-        }
+        return DocumentData(
+            self.get_file_metadata(file_path),
+            await self.read_file(file_path),
+            await self.get_chunks(file_path)
+        )
 
 
 class RAGSystem:
@@ -206,9 +202,9 @@ class RAGSystem:
         """
         return await self.fileloader.get_docs()
 
-    async def get_docs_data(self):
+    async def get_docs_data(self) -> List[DocumentData]:
 
         return [
             await self.filereader.get_file_data(doc)
-            for doc in self.get_docs()
+            for doc in await self.get_docs()
         ]
