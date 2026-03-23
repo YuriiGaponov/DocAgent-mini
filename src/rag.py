@@ -2,10 +2,12 @@
 Модуль src.rag.py — реализация системы RAG (Retrieval‑Augmented Generation)
 для DocAgent‑mini.
 
-Содержит компоненты для загрузки и фильтрации документации:
+Содержит компоненты для загрузки, чтения и обработки документации:
 * DocumentationFileLoader — загрузчик файлов с фильтрацией по расширениям
   и проверкой безопасности путей;
-* RAGSystem — основная система RAG, интегрирующая загрузчик документов.
+* DocumentationFileReader — читатель файлов, извлекающий метаданные и контент;
+* RAGSystem — основная система RAG, интегрирующая загрузчик и читатель
+  документов для подготовки данных в пайплайне RAG.
 """
 # добавить эмбеддинги файлов
 
@@ -132,10 +134,31 @@ class DocumentationFileLoader:
 
 
 class DocumentationFileReader:
+    """
+    Читатель файлов документации для извлечения метаданных и содержимого.
+
+    Предоставляет методы для:
+    * получения метаданных файла (имя, тип, время создания/изменения, размер);
+    * чтения текстового содержимого файла;
+    * разбиения текста на смысловые блоки (чанки);
+    * формирования полной структуры DocumentData для каждого файла.
+    """
 
     def get_file_metadata(self, file_path: Path) -> DocumentMetadata:
-        name = Path(file_path).name
-        type = Path(file_path).suffix
+        """
+        Извлекает метаданные файла на основе его пути.
+
+        Собирает информацию о названии, расширении, времени создания и
+        изменения, размере файла.
+
+        Args:
+            file_path (Path): Полный путь к файлу.
+
+        Returns:
+            DocumentMetadata: Объект метаданных документа.
+        """
+        name = file_path.name
+        type = file_path.suffix
         stats = file_path.stat()
         creation_time = datetime.fromtimestamp(stats.st_birthtime)
         modification_time = datetime.fromtimestamp(stats.st_mtime)
@@ -144,16 +167,53 @@ class DocumentationFileReader:
             name, type, file_path, creation_time, modification_time, size
         )
 
-    async def read_file(self, doc_path: Path):
+    async def read_file(self, doc_path: Path) -> str:
+        """
+        Асинхронно читает содержимое текстового файла.
+
+        Открывает файл с кодировкой UTF‑8 и возвращает его содержимое
+        в виде строки.
+
+        Args:
+            doc_path (Path): Путь к текстовому файлу.
+
+        Returns:
+            str: Содержимое файла.
+        """
         with open(doc_path, 'r', encoding='utf-8') as file:
             return file.read()
 
-    async def get_chunks(self, doc_path: Path):
+    async def get_chunks(self, doc_path: Path) -> List[str]:
+        """
+        Асинхронно разбивает содержимое файла на смысловые блоки.
+
+        Разделяет текст по двойным переносам строк (\n\n), формируя
+        список чанков для последующего использования в RAG.
+
+        Args:
+            doc_path (Path): Путь к текстовому файлу.
+
+        Returns:
+            List[str]: Список текстовых блоков (чанков).
+        """
         text = await self.read_file(doc_path)
         chunks = text.split('\n\n')
         return chunks
 
-    async def get_file_data(self, file_path: Path):
+    async def get_file_data(self, file_path: Path) -> DocumentData:
+        """
+        Асинхронно формирует полную структуру данных документа.
+
+        Объединяет метаданные, исходное содержимое и разбиение на чанки
+        в единый объект DocumentData.
+
+        Args:
+            file_path (Path): Путь к обрабатываемому файлу.
+
+        Returns:
+            DocumentData: Полный объект данных документа, готовый к
+                использованию в пайплайне RAG.
+        """
         return DocumentData(
             self.get_file_metadata(file_path),
             await self.read_file(file_path),
@@ -165,20 +225,23 @@ class RAGSystem:
     """
     Основная система RAG (Retrieval‑Augmented Generation) для DocAgent‑mini.
 
-    Интегрирует загрузчик документации (DocumentationFileLoader) и
-    предоставляет интерфейс для получения документов, которые могут
-    использоваться в последующих этапах RAG (поиск, генерация ответов).
+    Интегрирует загрузчик документации (DocumentationFileLoader) и читатель
+    файлов (DocumentationFileReader) для получения и подготовки данных
+    документов. Предоставляет унифицированный интерфейс для последующих
+    этапов RAG: поиска релевантных фрагментов и генерации ответов.
 
     Attributes:
         fileloader (DocumentationFileLoader): Экземпляр загрузчика файлов,
             настроенный с текущими настройками приложения.
+        filereader (DocumentationFileReader): Экземпляр читателя файлов,
+            используемый для извлечения данных из документов.
     """
 
     def __init__(self, settings: Settings):
         """
         Инициализирует систему RAG с заданными настройками.
 
-        Создаёт экземпляр загрузчика файлов для последующей работы
+        Создаёт экземпляры загрузчика и читателя файлов для последующей работы
         с документацией.
 
         Args:
@@ -203,7 +266,35 @@ class RAGSystem:
         return await self.fileloader.get_docs()
 
     async def get_docs_data(self) -> List[DocumentData]:
+        """
+        Асинхронно собирает полные данные по всем документам.
 
+        Для каждого документа из списка (полученного через get_docs) выполняет:
+        * извлечение метаданных файла;
+        * чтение текстового содержимого;
+        * разбиение текста на смысловые блоки (чанки).
+
+        Объединяет все данные в структуру DocumentData и возвращает
+        список объектов для дальнейшего использования в пайплайне RAG.
+
+        Process:
+            1. Получает список путей к документам через self.get_docs().
+            2. Для каждого файла вызывает self.filereader.get_file_data(),
+               который возвращает объект DocumentData.
+            3. Собирает все объекты в единый список.
+
+        Returns:
+            List[DocumentData]: Список объектов с полными данными
+                по всем документам, включая:
+                * метаданные (имя, тип, время создания/изменения, размер);
+                * исходное текстовое содержимое;
+                * разбиение на смысловые блоки (чанки).
+
+        Raises:
+            FileNotFoundError: Если директория с документами не существует
+                (передаётся из get_docs).
+            IOError: Если возникает ошибка чтения какого‑либо файла.
+        """
         return [
             await self.filereader.get_file_data(doc)
             for doc in await self.get_docs()
