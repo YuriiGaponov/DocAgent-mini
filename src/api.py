@@ -55,4 +55,4 @@ async def temp_endpoint(settings: Settings = Depends(get_settings)):
     Будет удален из релизной версии.
     """
     rag_sys = RAGSystem(settings)
-    return await rag_sys.get_docs()
+    return await rag_sys.get_docs_data()

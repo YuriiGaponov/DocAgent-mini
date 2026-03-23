@@ -10,6 +10,7 @@
 # добавить эмбеддинги файлов
 
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import List
 
@@ -129,6 +130,41 @@ class DocumentationFileLoader:
         return list(_generate_safe_files())
 
 
+class DocumentationFileReader:
+
+    def get_file_metadata(self, file_path: Path):
+        name = Path(file_path).name
+        type = Path(file_path).suffix
+        stats = file_path.stat()
+        creation_time = datetime.fromtimestamp(stats.st_birthtime)
+        modification_time = datetime.fromtimestamp(stats.st_mtime)
+        size = stats.st_size
+        return {
+            'name': name,
+            'type': type,
+            'path': file_path,
+            'creation_time': creation_time,
+            'modification_time': modification_time,
+            'size': size
+        }
+
+    async def read_file(self, doc_path: Path):
+        with open(doc_path, 'r', encoding='utf-8') as file:
+            return file.read()
+
+    async def get_chunks(self, doc_path: Path):
+        text = await self.read_file(doc_path)
+        chunks = text.split('\n\n')
+        return chunks
+
+    async def get_file_data(self, file_path: Path):
+        return {
+            'file_metadata': self.get_file_metadata(file_path),
+            'file_text': await self.read_file(file_path),
+            'chunked_text': await self.get_chunks(file_path)
+        }
+
+
 class RAGSystem:
     """
     Основная система RAG (Retrieval‑Augmented Generation) для DocAgent‑mini.
@@ -153,6 +189,7 @@ class RAGSystem:
             settings (Settings): Конфигурация приложения.
         """
         self.fileloader = DocumentationFileLoader(settings)
+        self.filereader = DocumentationFileReader()
 
     async def get_docs(self) -> List[Path]:
         """
@@ -168,3 +205,10 @@ class RAGSystem:
             FileNotFoundError: Если директория с документами не существует.
         """
         return await self.fileloader.get_docs()
+
+    async def get_docs_data(self):
+
+        return [
+            await self.filereader.get_file_data(doc)
+            for doc in self.get_docs()
+        ]
