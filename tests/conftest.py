@@ -73,7 +73,7 @@ def temp_docs_dir(tmp_path: Path) -> Generator[Path, None, None]:
 
     Yields:
         Path: Путь к временному каталогу с тестовыми документами.
-        После завершения теста каталог автоматически удаляется.
+            После завершения теста каталог автоматически удаляется.
     """
     docs_dir: Path = tmp_path / "docs"
     docs_dir.mkdir()
@@ -88,7 +88,21 @@ def temp_docs_dir(tmp_path: Path) -> Generator[Path, None, None]:
 
 @pytest.fixture
 def setup_test_docs_for_get_docs_data(tmp_path: Path) -> Path:
-    """Создаёт тестовую директорию с документами для get_docs_data."""
+    """
+    Создаёт тестовую директорию с документами для get_docs_data.
+
+    Формирует временный каталог с тестовыми Markdown‑файлами,
+    содержащими структурированный текст. Используется для проверки
+    корректности извлечения данных из документов.
+
+    Args:
+        tmp_path (Path): Временный путь от pytest для создания
+            тестовых файлов.
+
+    Returns:
+        Path: Путь к каталогу с тестовыми документами (doc1.md,
+            doc2.md).
+    """
     docs_dir = tmp_path / "test_docs_get_data"
     docs_dir.mkdir()
 
@@ -112,7 +126,20 @@ def setup_test_docs_for_get_docs_data(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def temp_file(tmp_path: Path) -> Path:
-    """Фикстура для создания временного тестового файла."""
+    """
+    Фикстура для создания временного тестового файла.
+
+    Генерирует временный Markdown‑файл с типовым содержимым.
+    Используется в тестах, требующих наличия файла для обработки.
+
+    Args:
+        tmp_path (Path): Временный путь от pytest для размещения
+            тестового файла.
+
+    Returns:
+        Path: Полный путь к созданному тестовому файлу
+            (test_document.md).
+    """
     file_path = tmp_path / "test_document.md"
     content = (
         "Заголовок\n\nПервый абзац.\n\n"
