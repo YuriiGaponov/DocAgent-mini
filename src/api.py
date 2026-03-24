@@ -9,6 +9,8 @@
 
 from fastapi import APIRouter
 
+from src.logger import logger
+
 router = APIRouter()
 """Экземпляр APIRouter — маршрутизатор
 для группировки эндпоинтов API."""
@@ -36,9 +38,12 @@ async def health():
         внутренних ошибок, чтобы чётко различать
         доступность сервиса и его внутреннее состояние.
     """
+    logger.info('Начало обработки запроса на эндпоинт "/health"')
     try:
+        logger.success('Статус приложения: "healthy"')
         return {"status": "healthy"}
     except Exception as e:
+        logger.error(f'Ошибка при проверке здоровья приложения: {e}')
         return {"status": "unhealthy", "error": str(e)}
 
 
@@ -54,5 +59,8 @@ async def temp_endpoint(settings: Settings = Depends(get_settings)):
     Временный эндпоинт для тестирования функционала.
     Будет удален из релизной версии.
     """
+    logger.info('Начало обработки запроса на эндпоинт "/"')
+    logger.debug(f'Получен экземпляр настроек: {settings.__class__}')
     rag_sys = RAGSystem(settings)
+    logger.debug(f'Создан экземпляр RAG-системы: {rag_sys.__class__}')
     return await rag_sys.get_docs_data()

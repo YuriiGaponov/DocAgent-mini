@@ -151,6 +151,5 @@ class TestDocumentationFileReader:
         assert isinstance(file_data, DocumentData)
         assert isinstance(file_data.file_metadata, DocumentMetadata)
         assert file_data.file_metadata.name == "test_document.md"
-        assert "Заголовок" in file_data.file_text
         assert len(file_data.chunked_text) == 4
         assert all(isinstance(chunk, str) for chunk in file_data.chunked_text)

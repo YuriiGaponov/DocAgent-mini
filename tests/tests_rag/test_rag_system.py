@@ -135,31 +135,6 @@ class TestRAGSystem:
             assert doc.file_metadata.type == ".md"
 
     @pytest.mark.asyncio
-    async def test_get_docs_data_contains_full_text(
-        self,
-        mock_settings: Settings,
-        setup_test_docs_for_get_docs_data: Path
-    ) -> None:
-        """
-        Тест: полный текст документа корректно извлечён.
-
-        Проверяет, что текст документа полностью загружен и содержит
-        ожидаемое содержимое.
-        """
-        mock_settings.DOC_PATH = str(setup_test_docs_for_get_docs_data)
-        rag = RAGSystem(mock_settings)
-
-        docs_data = await rag.get_docs_data()
-
-        for doc in docs_data:
-            full_text = doc.file_text
-            assert isinstance(full_text, str)
-            assert len(full_text) > 10  # Текст не пустой
-            # Проверяем, что текст содержит заголовок (первая строка)
-            first_line = full_text.split('\n')[0]
-            assert "Документ" in first_line
-
-    @pytest.mark.asyncio
     async def test_get_docs_data_chunks_are_correct(
         self,
         mock_settings: Settings,

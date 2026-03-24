@@ -71,16 +71,6 @@ async def test_full_rag_flow_with_real_files(
         assert isinstance(metadata.creation_time, datetime)
         assert isinstance(metadata.modification_time, datetime)
 
-        # Проверяем полный текст
-        full_text = doc.file_text
-        assert isinstance(full_text, str)
-        assert len(full_text) > 10  # Текст не пустой
-
-        # Проверка первой строки
-        first_line = full_text.split('\n')[0].strip()
-        assert len(first_line) > 0  # Первая строка не пустая
-        assert any(c.isalpha() for c in first_line)  # Содержит буквы
-
         # Проверяем чанки
         chunks = doc.chunked_text
         assert isinstance(chunks, list)

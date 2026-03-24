@@ -35,6 +35,7 @@ from typing import List
 
 from src.models import DocumentData
 from src.settings import Settings
+from src.logger import logger
 from src.rag.loader import DocumentationFileLoader
 from src.rag.reader import DocumentationFileReader
 
@@ -67,6 +68,12 @@ class RAGSystem:
         """
         self.fileloader = DocumentationFileLoader(settings)
         self.filereader = DocumentationFileReader()
+        logger.debug(
+            f'\n'
+            f'Инициализирована RAG-система: {self.__class__}\n'
+            f'Загрузчик документации: {self.fileloader.__class__}\n'
+            f'Читатель файлов: {self.filereader.__class__}'
+        )
 
     async def get_docs(self) -> List[Path]:
         """
@@ -81,6 +88,7 @@ class RAGSystem:
         Raises:
             FileNotFoundError: Если директория с документами не существует.
         """
+        logger.debug('Запуск RAGSystem.get_docs - получение документов.')
         return await self.fileloader.get_docs()
 
     async def get_docs_data(self) -> List[DocumentData]:
@@ -113,7 +121,12 @@ class RAGSystem:
                 (передаётся из get_docs).
             IOError: Если возникает ошибка чтения какого‑либо файла.
         """
-        return [
+        logger.debug(
+            'Запуск RAGSystem.get_docs_data - получение данных из документов.'
+        )
+        docs_data = [
             await self.filereader.get_file_data(doc)
             for doc in await self.get_docs()
         ]
+        logger.debug(f'Подготовлены данные {len(docs_data)} документов')
+        return docs_data
