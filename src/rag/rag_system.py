@@ -22,6 +22,7 @@
 * src.settings.Settings — конфигурация приложения (пути, шаблоны фильтров);
 * src.rag.loader.DocumentationFileLoader — компонент для безопасной
   загрузки и фильтрации файлов;
+* src.rag.loader.EmbeddingService — компонент для работы с эмбеддингами;
 * src.rag.reader.DocumentationFileReader — компонент для чтения
   файлов и извлечения данных.
 
@@ -36,6 +37,7 @@ from typing import List
 from src.models import DocumentData
 from src.settings import Settings
 from src.logger import logger
+from src.rag.embedding_manager import EmbeddingService
 from src.rag.loader import DocumentationFileLoader
 from src.rag.reader import DocumentationFileReader
 
@@ -68,6 +70,7 @@ class RAGSystem:
         """
         self.fileloader = DocumentationFileLoader(settings)
         self.filereader = DocumentationFileReader()
+        self.embedder = EmbeddingService()
         logger.debug(
             f'\n'
             f'Инициализирована RAG-система: {self.__class__}\n'
@@ -90,6 +93,15 @@ class RAGSystem:
         """
         logger.debug('Запуск RAGSystem.get_docs - получение документов.')
         return await self.fileloader.get_docs()
+
+    async def generate_embedding(self, text: str) -> str:
+        """Превращает текст в векторы."""
+        logger.debug(
+            'Запуск RAGSystem.generate_embedding - превратить текст в векторы.'
+        )
+        embedding = self.embedder.generate_embedding(text)
+        logger.debug('Эмбеддинг создан')
+        return embedding
 
     async def get_docs_data(self) -> List[DocumentData]:
         """
