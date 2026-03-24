@@ -52,9 +52,6 @@ class DocumentData:
     file_metadata: DocumentMetadata
     """Метаданные файла (экземпляр DocumentMetadata)."""
 
-    file_text: str
-    """Полный текст документа в виде строки."""
-
     chunked_text: List[str]
     """Список строк — разбитый на логические части текст документа.
     Каждый элемент списка представляет собой один чанк текста,

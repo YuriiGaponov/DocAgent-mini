@@ -130,7 +130,6 @@ class DocumentationFileReader:
         logger.debug('Запуск DocumentationFileReader.get_chunks')
         document_data = DocumentData(
             self.get_file_metadata(file_path),
-            await self.read_file(file_path),
             await self.get_chunks(file_path)
         )
         logger.debug(f'Создан экземпляр {document_data.__class__}')
