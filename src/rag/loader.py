@@ -31,6 +31,7 @@ import re
 from pathlib import Path
 from typing import List
 
+from src.logger import logger
 from src.settings import Settings
 
 
@@ -58,6 +59,11 @@ class DocumentationFileLoader:
                 шаблон разрешённых имён файлов и т. д.).
         """
         self.settings = settings
+        logger.debug(
+            f'\n'
+            f'Загрузчик документов инициализирован: {self.__class__}\n'
+            f'Настройки приложения: {self.settings.__class__}'
+        )
 
     def is_filename_allowed(self, filename: str) -> bool:
         """
@@ -72,8 +78,12 @@ class DocumentationFileLoader:
         Returns:
             bool: True, если имя файла соответствует шаблону, иначе False.
         """
+        logger.debug('Запуск DocumentationFileLoader.is_filename_allowed')
+        logger.debug(f'Проверка допустимости имени файла {filename}')
         if re.match(self.settings.ALLOWED_FILENAME_PATTERN, filename):
+            logger.debug('Имя допустимо')
             return True
+        logger.debug('Имя недопустимо')
         return False
 
     def get_file_path(self, filename: str) -> Path:
@@ -89,8 +99,11 @@ class DocumentationFileLoader:
         Returns:
             Path: Объект Path, представляющий полный путь к файлу.
         """
+        logger.debug('Запуск DocumentationFileLoader.get_file_path')
+        logger.debug(f'Создание пути к файлу {filename}')
         base_dir = Path(self.settings.DOC_PATH).resolve()
         target_path = (base_dir / filename).resolve()
+        logger.debug(f'Путь сформирован {target_path}')
         return target_path
 
     def is_filepath_safe(self, filepath: Path) -> bool:
@@ -108,8 +121,12 @@ class DocumentationFileLoader:
             bool: True, если путь безопасен (находится внутри DOC_PATH),
                 иначе False.
         """
+        logger.debug('Запуск DocumentationFileLoader.is_filepath_safe')
+        logger.debug(f'Проверка безопасности пути {filepath}')
         base_dir = Path(self.settings.DOC_PATH).resolve()
-        return str(filepath).startswith(str(base_dir))
+        is_safe = str(filepath).startswith(str(base_dir))
+        logger.debug(f'Путь {'безопасен' if is_safe else 'небезопасен'}')
+        return is_safe
 
     async def get_docs(self) -> List[Path]:
         """
@@ -126,6 +143,8 @@ class DocumentationFileLoader:
         Raises:
             FileNotFoundError: Если директория DOC_PATH не существует.
         """
+        logger.debug('Запуск DocumentationFileLoader.get_docs')
+
         def _generate_safe_files():
             dir_path = Path(self.settings.DOC_PATH)
 
@@ -144,4 +163,7 @@ class DocumentationFileLoader:
                 if file_path and self.is_filepath_safe(file_path):
                     yield file_path
 
-        return list(_generate_safe_files())
+        docs = list(_generate_safe_files())
+        logger.info(f'Получено документов: {len(docs)}')
+
+        return docs

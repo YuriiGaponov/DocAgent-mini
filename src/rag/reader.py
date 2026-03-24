@@ -36,6 +36,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 
+from src.logger import logger
 from src.models import DocumentData, DocumentMetadata
 
 
@@ -63,12 +64,14 @@ class DocumentationFileReader:
         Returns:
             DocumentMetadata: Объект метаданных документа.
         """
+        logger.debug('Запуск DocumentationFileReader.get_file_metadata')
         name = file_path.name
         type = file_path.suffix
         stats = file_path.stat()
         creation_time = datetime.fromtimestamp(stats.st_birthtime)
         modification_time = datetime.fromtimestamp(stats.st_mtime)
         size = stats.st_size
+        logger.debug(f'Получены мета-данные {file_path.name}')
         return DocumentMetadata(
             name, type, file_path, creation_time, modification_time, size
         )
@@ -86,7 +89,9 @@ class DocumentationFileReader:
         Returns:
             str: Содержимое файла.
         """
+        logger.debug('Запуск DocumentationFileReader.read_file')
         with open(doc_path, 'r', encoding='utf-8') as file:
+            logger.debug(f'Чтение {file.name}')
             return file.read()
 
     async def get_chunks(self, doc_path: Path) -> List[str]:
@@ -102,8 +107,10 @@ class DocumentationFileReader:
         Returns:
             List[str]: Список текстовых блоков (чанков).
         """
+        logger.debug('Запуск DocumentationFileReader.get_chunks')
         text = await self.read_file(doc_path)
         chunks = text.split('\n\n')
+        logger.debug(f'{doc_path.name} разбит на {len(chunks)} чанков')
         return chunks
 
     async def get_file_data(self, file_path: Path) -> DocumentData:
@@ -120,8 +127,11 @@ class DocumentationFileReader:
             DocumentData: Полный объект данных документа, готовый к
                 использованию в пайплайне RAG.
         """
-        return DocumentData(
+        logger.debug('Запуск DocumentationFileReader.get_chunks')
+        document_data = DocumentData(
             self.get_file_metadata(file_path),
             await self.read_file(file_path),
             await self.get_chunks(file_path)
         )
+        logger.debug(f'Создан экземпляр {document_data.__class__}')
+        return document_data

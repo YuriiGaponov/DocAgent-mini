@@ -16,6 +16,9 @@ from src.api import router
 from src.settings import Settings, get_settings
 
 
+logger.warning('НАЧАЛО РАБОТЫ DocAgent‑mini')
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
@@ -33,7 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.critical(f'Ошибка запуска DocAgent‑mini: {e}')
         raise
     finally:
-        logger.info('Завершение работы DocAgent‑mini')
+        logger.warning('ЗАВЕРШЕНИЕ РАБОТЫ DocAgent‑mini')
 
 settings: Settings = get_settings()
 """Настройки приложения, загруженные через get_settings()."""
@@ -46,7 +49,7 @@ app = FastAPI(
 )
 """Экземпляр FastAPI — веб‑сервер приложения."""
 
-logger.debug(f'Приложение DocAgent‑mini инициализировано: {app}')
+logger.debug(f'Приложение DocAgent‑mini инициализировано: {app.__class__}')
 
 app.include_router(router)
-logger.trace(f'Подключен роутер: {router}')
+logger.debug(f'Подключен роутер: {router.__class__}')
