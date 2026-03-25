@@ -68,6 +68,25 @@ class EmbeddedDocument(DocumentData):
 
     Используется в RAG‑системе для семантического поиска и ранжирования.
     """
-    text_embeddings: List[str]
+    text_embeddings: List[List[float]]
     """Список эмбеддингов (векторных представлений) для каждого чанка
     в chunked_text. Каждый эмбеддинг соответствует своему чанку по индексу."""
+
+    def to_dict(self) -> dict:  # временно
+        return {
+            "file_metadata": {
+                "name": self.file_metadata.name,
+                "type": self.file_metadata.type,
+                "path": str(self.file_metadata.path),  # Path -> str
+                "creation_time": self.file_metadata.creation_time.isoformat(),
+                "modification_time": (
+                    self.file_metadata.modification_time.isoformat()
+                ),
+                "size": self.file_metadata.size
+            },
+            "chunked_text": self.chunked_text,
+            "text_embeddings": [
+                [float(x) for x in embedding]  # Гарантируем тип float
+                for embedding in self.text_embeddings
+            ]
+        }

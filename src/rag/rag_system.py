@@ -70,12 +70,13 @@ class RAGSystem:
         """
         self.fileloader = DocumentationFileLoader(settings)
         self.filereader = DocumentationFileReader()
-        self.embedder = EmbeddingService()
+        self.embedder = EmbeddingService(settings)
         logger.debug(
             f'\n'
             f'Инициализирована RAG-система: {self.__class__}\n'
             f'Загрузчик документации: {self.fileloader.__class__}\n'
-            f'Читатель файлов: {self.filereader.__class__}'
+            f'Читатель файлов: {self.filereader.__class__}\n'
+            f'Сервис эмбеддингов: {self.embedder.__class__}'
         )
 
     async def get_docs(self) -> List[Path]:
@@ -94,7 +95,7 @@ class RAGSystem:
         logger.debug('Запуск RAGSystem.get_docs - получение документов.')
         return await self.fileloader.get_docs()
 
-    async def generate_embedding(self, text: str) -> str:
+    async def generate_embedding(self, text: str) -> List[float]:
         """Превращает текст в векторы."""
         logger.debug(
             'Запуск RAGSystem.generate_embedding - превратить текст в векторы.'
@@ -121,7 +122,7 @@ class RAGSystem:
         logger.debug(f'Создан экземпляр {emb_doc.__class__}')
         return emb_doc
 
-    async def get_docs_data(self) -> List[EmbeddedDocument]:
+    async def get_docs_data(self) -> List[dict]:
         """
         Асинхронно собирает полные данные по всем документам.
 
@@ -151,16 +152,21 @@ class RAGSystem:
                 (передаётся из get_docs).
             IOError: Если возникает ошибка чтения какого‑либо файла.
         """
-        logger.debug(
-            'Запуск RAGSystem.get_docs_data - получение данных из документов.'
-        )
-        docs_data = [
-            await self.filereader.get_file_data(doc)
-            for doc in await self.get_docs()
-        ]
-        emb_docs_data = [
-            await self.generate_embedded_document(doc)
-            for doc in docs_data
-        ]
-        logger.debug(f'Подготовлены данные {len(emb_docs_data)} документов')
-        return emb_docs_data
+        try:
+            docs_data = [
+                await self.filereader.get_file_data(doc)
+                for doc in await self.get_docs()
+            ]
+            emb_docs_data = [
+                await self.generate_embedded_document(doc)
+                for doc in docs_data
+            ]
+            # Явная сериализация в dict
+            serialized_data = [emb_doc.to_dict() for emb_doc in emb_docs_data]
+            logger.debug(
+                f'Подготовлены данные {len(serialized_data)} документов'
+            )
+            return serialized_data
+        except Exception as e:
+            logger.error(f'Ошибка в get_docs_data: {e}')
+            raise
