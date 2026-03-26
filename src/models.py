@@ -3,14 +3,15 @@
 
 Определяет структуры данных (dataclasses) для представления:
 * метаданных документа (DocumentMetadata);
-* полных данных документа с чанками (DocumentData)
+* прочитанного документа (ReadedDocument);
+* расширенной структуры с эмбеддингами (EmbeddedDocument)
   для использования в RAG‑системе.
 """
 
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 
 
 @dataclass
@@ -18,8 +19,8 @@ class DocumentMetadata:
     """
     Метаданные документа.
 
-    Хранит основную информацию о файле, необходимую для управления
-    документацией и работы RAG‑системы.
+    Хранит основную информацию о файле для управления документацией
+    и работы RAG‑системы.
     """
     name: str
     """Имя файла без пути."""
@@ -41,18 +42,68 @@ class DocumentMetadata:
 
 
 @dataclass
-class DocumentData:
+class ReadedDocument:
     """
-    Структура данных документа для RAG‑системы.
+    Прочитанный документ — объединяет текстовое содержимое и метаданные.
 
-    Содержит полный контент документа, разбитый на чанки,
-    и метаданные для поиска и анализа. Используется как основной
-    формат представления документа в системе.
+    Используется как промежуточная структура при обработке файлов:
+    хранит полный текст и связанные с ним метаданные.
+    """
+    file_text: str
+    """Текстовое содержимое файла."""
+
+    file_metadata: DocumentMetadata
+    """Метаданные файла (экземпляр DocumentMetadata)."""
+
+
+@dataclass
+class EmbeddedDocument:
+    """
+    Расширенная структура данных документа с эмбеддингами.
+
+    Объединяет метаданные, разбиение на чанки и векторные представления
+    текста. Используется в RAG‑системе для семантического поиска
+    и ранжирования.
     """
     file_metadata: DocumentMetadata
     """Метаданные файла (экземпляр DocumentMetadata)."""
 
-    chunked_text: List[str]
+    chunks: List[str]
     """Список строк — разбитый на логические части текст документа.
-    Каждый элемент списка представляет собой один чанк текста,
-    удобный для эмбеддингов и поиска."""
+    Каждый элемент списка — один чанк текста, удобный для эмбеддингов
+    и поиска."""
+
+    text_embeddings: List[List[float]]
+    """Список эмбеддингов (векторных представлений) для каждого чанка.
+    Каждый эмбеддинг соответствует своему чанку по индексу."""
+
+    def to_dict(self) -> Dict[str, any]:
+        """
+        Преобразует объект в словарь для сериализации.
+
+        Конвертирует все поля в базовые типы Python, включая:
+        * преобразование Path в строку;
+        * форматирование datetime в ISO‑строку;
+        * гарантию типа float для значений эмбеддингов.
+
+        Returns:
+            Dict[str, any]: Словарь с данными документа, готовый
+                к сериализации (например, в JSON).
+        """
+        return {
+            "file_metadata": {
+                "name": self.file_metadata.name,
+                "type": self.file_metadata.type,
+                "path": str(self.file_metadata.path),
+                "creation_time": self.file_metadata.creation_time.isoformat(),
+                "modification_time": (
+                    self.file_metadata.modification_time.isoformat()
+                ),
+                "size": self.file_metadata.size
+            },
+            "chunks": self.chunks,
+            "text_embeddings": [
+                [float(x) for x in embedding]
+                for embedding in self.text_embeddings
+            ]
+        }

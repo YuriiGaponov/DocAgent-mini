@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     # Настройки RAG-системы
     DOC_PATH: str = f'{BASE_DIR}/docs'
     ALLOWED_FILENAME_PATTERN: str = r"^[a-z0-9_-]+\.md$"
+    EMBEDDING_MODEL: str = 'all-MiniLM-L6-v2'
 
     model_config = SettingsConfigDict(
         env_file=(BASE_DIR / '.env'),
