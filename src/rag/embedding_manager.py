@@ -6,7 +6,8 @@
 представления (эмбеддинги). Реализует:
 * ленивую загрузку модели (при первом обращении);
 * кэширование модели для повторного использования;
-* генерацию эмбеддингов для текстовых фрагментов.
+* генерацию эмбеддингов для текстовых фрагментов (одиночных
+  и пакетных).
 
 Особенности:
 * использует sentence_transformers для работы с моделями;
@@ -17,10 +18,17 @@
 Пример использования:
     settings = Settings()
     embedding_service = EmbeddingService(settings)
-    embedding = await embedding_service.generate_embedding("Пример текста")
+    # Одиночный эмбеддинг
+    embedding = await embedding_service.generate_embedding(
+        "Пример текста"
+    )
+    # Пакетная обработка
+    embeddings = await embedding_service.generate_embedding([
+        "Текст 1", "Текст 2"
+    ])
 """
 
-from typing import List
+from typing import List, Union
 from sentence_transformers import SentenceTransformer
 
 from src.settings import Settings
@@ -32,8 +40,9 @@ class EmbeddingService:
     Сервис генерации эмбеддингов для RAG‑системы.
 
     Преобразует текст в векторные представления с использованием
-    предобученных языковых моделей. Оптимизирует производительность
-    за счёт ленивой загрузки и кэширования модели.
+    предобученных языковых моделей. Поддерживает одиночную и пакетную
+    обработку текстов. Оптимизирует производительность за счёт ленивой
+    загрузки и кэширования модели.
     """
 
     def __init__(self, settings: Settings):
@@ -59,15 +68,32 @@ class EmbeddingService:
             logger.debug('Модель эмбеддингов загружена и кэширована')
         return self._embedding_model
 
-    def generate_embedding(self, text: str) -> List[float]:
+    async def generate_embedding(
+        self,
+        text: Union[str, List[str]]
+    ) -> Union[List[float], List[List[float]]]:
         """
-        Асинхронно генерирует эмбеддинг для текста.
+        Асинхронно генерирует эмбеддинг для текста или списка текстов.
 
-        Преобразует входной текст в вектор фиксированной размерности
-        с помощью загруженной модели. Логирует начало и завершение
-        операции.
+        Поддерживает два режима:
+        * одиночная обработка — если передан str, возвращает List[float];
+        * пакетная обработка — если передан List[str], возвращает
+          List[List[float]].
+
+        Логирует количество обрабатываемых текстов и факт завершения операции.
         """
-        logger.debug('Запуск EmbeddingService.generate_embedding')
-        embedded_text = self.embedding_function.encode(text)
-        logger.debug('Эмбеддинг сгенерирован')
-        return embedded_text
+        count = len(text) if isinstance(text, list) else 1
+        logger.debug(f"Запуск generate_embedding для {count} текстов")
+
+        if isinstance(text, list):
+            # Пакетная обработка: кодируем все тексты сразу
+            embeddings = self.embedding_function.encode(text)
+            result = embeddings.tolist()
+        else:
+            # Одиночная обработка: оборачиваем текст в список для encode,
+            # берём первый элемент результата
+            embedding = self.embedding_function.encode([text])[0]
+            result = embedding.tolist()
+
+        logger.debug("Эмбеддинги сгенерированы")
+        return result
