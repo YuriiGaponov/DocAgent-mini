@@ -1,43 +1,34 @@
 """
 Модуль src.rag.embedding_manager.py — сервис генерации эмбеддингов
-для системы RAG (Retrieval‑Augmented Generation) в DocAgent‑mini.
+для системы RAG в DocAgent‑mini.
 
+Содержит класс EmbeddingService для преобразования текста в векторные
+представления (эмбеддинги). Реализует:
+* ленивую загрузку модели (при первом обращении);
+* кэширование модели для повторного использования;
+* генерацию эмбеддингов для текстовых фрагментов (одиночных
+  и пакетных).
 
-Содержит класс EmbeddingService, отвечающий за преобразование текстового
-содержимого в векторные представления (эмбеддинги). Реализует:
-* ленивую загрузку модели эмбеддингов (загрузка при первом обращении);
-* кэширование загруженной модели для повторного использования;
-* асинхронную генерацию векторных представлений текста.
-
-
-Ключевые особенности:
-* использование библиотеки sentence_transformers для работы с моделями
-  эмбеддингов;
-* загрузка модели на основе настроек приложения (EMBEDDING_MODEL);
-* оптимизация производительности за счёт кэширования модели;
-* логирование операций через встроенный логгер.
-
-
-Основные сценарии использования:
-* инициализация сервиса с настройками приложения;
-* получение функции эмбеддинга (автоматическая загрузка модели при
-  первом вызове);
-* генерация эмбеддингов для отдельных текстовых фрагментов (чанков).
-
-Зависимости:
-* sentence_transformers.SentenceTransformer — модель для генерации
-  векторных представлений текста;
-* src.settings.Settings — конфигурация приложения (путь/название
-  модели эмбеддингов);
-* src.logger.logger — логгер для отслеживания операций сервиса.
+Особенности:
+* использует sentence_transformers для работы с моделями;
+* загружает модель из настроек приложения (EMBEDDING_MODEL);
+* оптимизирует производительность через кэширование;
+* логирует операции через встроенный логгер.
 
 Пример использования:
     settings = Settings()
     embedding_service = EmbeddingService(settings)
-    embedding = await embedding_service.generate_embedding("Пример текста")
+    # Одиночный эмбеддинг
+    embedding = await embedding_service.generate_embedding(
+        "Пример текста"
+    )
+    # Пакетная обработка
+    embeddings = await embedding_service.generate_embedding([
+        "Текст 1", "Текст 2"
+    ])
 """
 
-from typing import List
+from typing import List, Union
 from sentence_transformers import SentenceTransformer
 
 from src.settings import Settings
@@ -46,28 +37,17 @@ from src.logger import logger
 
 class EmbeddingService:
     """
-    Сервис генерации эмбеддингов для текстовых данных в системе RAG.
+    Сервис генерации эмбеддингов для RAG‑системы.
 
-    Обеспечивает преобразование текстового содержимого в векторные
-    представления с использованием предобученных языковых моделей.
-    Реализует ленивую загрузку и кэширование модели для оптимизации
-    производительности.
-
-    Attributes:
-        settings (Settings): Настройки приложения, содержащие конфигурацию
-            сервиса (в т. ч. название модели эмбеддингов).
-        _embedding_model (SentenceTransformer | None): Кэш загруженной
-            модели эмбеддингов. Изначально None, загружается при первом
-            обращении через свойство embedding_function.
+    Преобразует текст в векторные представления с использованием
+    предобученных языковых моделей. Поддерживает одиночную и пакетную
+    обработку текстов. Оптимизирует производительность за счёт ленивой
+    загрузки и кэширования модели.
     """
 
     def __init__(self, settings: Settings):
         """
-        Инициализирует сервис генерации эмбеддингов с заданными настройками.
-
-        Args:
-            settings (Settings): Конфигурация приложения, содержащая
-                параметры сервиса (например, EMBEDDING_MODEL).
+        Инициализирует сервис с заданными настройками.
         """
         self.settings = settings
         self._embedding_model = None  # Кэш модели
@@ -75,43 +55,45 @@ class EmbeddingService:
     @property
     def embedding_function(self) -> SentenceTransformer:
         """
-        Лениво загружает и возвращает модель для генерации эмбеддингов.
+        Лениво загружает и возвращает модель эмбеддингов.
 
-        При первом обращении загружает модель из настроек (EMBEDDING_MODEL)
-        и кэширует её. В последующие вызовы возвращает уже загруженную
-        модель.
-
-        Returns:
-            SentenceTransformer: Инициализированная модель для кодирования
-                текста в векторные представления.
+        При первом вызове загружает модель из настроек, кэширует.
+        В последующие вызовы возвращает кэшированную модель.
         """
         if self._embedding_model is None:
+            logger.debug('Загрузка модели эмбеддингов...')
             self._embedding_model = SentenceTransformer(
                 self.settings.EMBEDDING_MODEL
             )
+            logger.debug('Модель эмбеддингов загружена и кэширована')
         return self._embedding_model
 
-    async def generate_embedding(self, text: str) -> List[float]:
+    async def generate_embedding(
+        self,
+        text: Union[str, List[str]]
+    ) -> Union[List[float], List[List[float]]]:
         """
-        Асинхронно генерирует эмбеддинг (векторное представление) для текста.
+        Асинхронно генерирует эмбеддинг для текста или списка текстов.
 
-        Использует загруженную модель эмбеддингов для преобразования
-        входного текста в вектор фиксированной размерности. Логирует начало
-        операции.
+        Поддерживает два режима:
+        * одиночная обработка — если передан str, возвращает List[float];
+        * пакетная обработка — если передан List[str], возвращает
+          List[List[float]].
 
-        Args:
-            text (str): Текст, который необходимо преобразовать в эмбеддинг.
-
-        Returns:
-            List[float]: Векторное представление текста в виде списка
-                чисел с плавающей точкой.
-
-        Example:
-            >>> embedding = await service.generate_embedding("Hello world")
-            >>> len(embedding)
-            768  # или другая размерность в зависимости от модели
+        Логирует количество обрабатываемых текстов и факт завершения операции.
         """
-        logger.debug('Запуск EmbeddingService.generate_embedding')
-        embedded_text = self.embedding_function.encode(text)
-        logger.debug('Эмбеддинг сгенерирован')
-        return embedded_text
+        count = len(text) if isinstance(text, list) else 1
+        logger.debug(f"Запуск generate_embedding для {count} текстов")
+
+        if isinstance(text, list):
+            # Пакетная обработка: кодируем все тексты сразу
+            embeddings = self.embedding_function.encode(text)
+            result = embeddings.tolist()
+        else:
+            # Одиночная обработка: оборачиваем текст в список для encode,
+            # берём первый элемент результата
+            embedding = self.embedding_function.encode([text])[0]
+            result = embedding.tolist()
+
+        logger.debug("Эмбеддинги сгенерированы")
+        return result
