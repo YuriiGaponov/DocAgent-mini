@@ -7,6 +7,8 @@
 сервиса (/health).
 """
 
+import time
+
 from fastapi import APIRouter
 
 from src.logger import logger
@@ -59,8 +61,13 @@ async def temp_endpoint(settings: Settings = Depends(get_settings)):
     Временный эндпоинт для тестирования функционала.
     Будет удален из релизной версии.
     """
+    start_time = time.time()  # Замер времени начала
     logger.info('Начало обработки запроса на эндпоинт "/"')
     logger.debug(f'Получен экземпляр настроек: {settings.__class__}')
     rag_sys = RAGSystem(settings)
     logger.debug(f'Создан экземпляр RAG-системы: {rag_sys.__class__}')
-    return await rag_sys.get_docs_data()
+    result = await rag_sys.get_docs_data()
+    end_time = time.time()  # Замер времени окончания
+    execution_time = end_time - start_time  # Расчёт времени выполнения
+    logger.info(f'Время выполнения temp_endpoint: {execution_time:.4f} секунд')
+    return result
