@@ -41,6 +41,7 @@ from src.logger import logger
 from src.rag.embedding_manager import EmbeddingService
 from src.rag.loader import DocumentationFileLoader
 from src.rag.reader import DocumentationFileReader
+from src.rag.vectorDB_manager import VectorDBManager
 
 
 class RAGSystem:
@@ -61,6 +62,7 @@ class RAGSystem:
         self.fileloader = DocumentationFileLoader(settings)
         self.filereader = DocumentationFileReader()
         self.embedder = EmbeddingService(settings)
+        self.client = VectorDBManager(settings)
         logger.debug(
             f'\n'
             f'Инициализирована RAG-система: {self.__class__}\n'
@@ -134,4 +136,16 @@ class RAGSystem:
             return serialized_data
         except Exception as e:
             logger.error(f'Ошибка в get_docs_data: {e}')
+            raise
+
+    async def create_docs_collection(self):
+        """Добавить документы в векторную БД."""
+        try:
+            collection = self.client.get_or_create_collection()
+            return {
+                'status': 'success',
+                'message': f'Коллекция {collection.name} создана'
+            }
+        except Exception as e:
+            logger.error(f'Ошибка создания коллекции {e}')
             raise
