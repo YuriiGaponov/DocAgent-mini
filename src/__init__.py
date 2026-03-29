@@ -14,3 +14,9 @@
 В текущей реализации файл остаётся пустым, обеспечивая базовую функцию —
 маркировку директории как Python‑пакета для корректной работы импортов.
 """
+
+
+from src.settings import Settings, get_settings
+from src.rag.loader import DocumentationFileLoader
+
+__all__ = ['DocumentationFileLoader', 'Settings', 'get_settings']
