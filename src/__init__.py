@@ -16,7 +16,12 @@
 """
 
 
-from src.settings import Settings, get_settings
+from src.models import ReadedDocument
+from src.settings import Settings
 from src.rag.loader import DocumentationFileLoader
+from src.rag.reader import DocumentationFileReader
 
-__all__ = ['DocumentationFileLoader', 'Settings', 'get_settings']
+__all__ = [
+    'DocumentationFileLoader', 'DocumentationFileReader', 'ReadedDocument',
+    'Settings'
+]

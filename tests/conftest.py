@@ -53,7 +53,9 @@ def temp_docs_dir(tmp_path: Path) -> Generator[Path, None, None]:
     """
     docs_dir: Path = tmp_path / "docs"
     docs_dir.mkdir()
-    (docs_dir / "valid_doc1.md").write_text("Content of valid document")
-    (docs_dir / "valid_doc2.md").write_text("Content of valid document")
-    (docs_dir / "not_valid_doc.exe").write_text("Content of valid document")
+    (docs_dir / "valid_doc1.md").write_text("Content of 1th valid document")
+    (docs_dir / "valid_doc2.md").write_text("Content of 2nd valid document")
+    (docs_dir / "not_valid_doc.exe").write_text(
+        "Content of not valid document"
+    )
     yield docs_dir
