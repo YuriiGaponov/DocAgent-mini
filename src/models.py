@@ -11,7 +11,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Any
 
 
 @dataclass
@@ -39,6 +39,23 @@ class DocumentMetadata:
 
     size: int
     """Размер файла в байтах."""
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Преобразует объект в словарь для сериализации.
+
+        Конвертирует все поля в базовые типы Python, включая:
+        * преобразование Path в строку;
+        * форматирование datetime в ISO‑строку.
+        """
+        return {
+            'name': self.name,
+            'type': self.type,
+            'path': str(self.path),
+            'creation_time': self.creation_time.isoformat(),
+            'modification_time': self.modification_time.isoformat(),
+            'size': self.size
+        }
 
 
 @dataclass
@@ -73,22 +90,25 @@ class EmbeddedDocument:
     Каждый элемент списка — один чанк текста, удобный для эмбеддингов
     и поиска."""
 
+    hash_ids: List[str]
+    """Список уникальных идентификаторов для каждого чанка.
+    Используются как ключи при добавлении данных в векторную БД."""
+
     text_embeddings: List[List[float]]
     """Список эмбеддингов (векторных представлений) для каждого чанка.
     Каждый эмбеддинг соответствует своему чанку по индексу."""
 
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         """
         Преобразует объект в словарь для сериализации.
 
-        Конвертирует все поля в базовые типы Python, включая:
-        * преобразование Path в строку;
-        * форматирование datetime в ISO‑строку;
-        * гарантию типа float для значений эмбеддингов.
+        Конвертирует все поля в базовые типы Python:
+        * преобразует Path в строку в составе file_metadata;
+        * форматирует datetime в ISO‑строки в составе file_metadata;
+        * гарантирует тип float для значений эмбеддингов.
 
-        Returns:
-            Dict[str, any]: Словарь с данными документа, готовый
-                к сериализации (например, в JSON).
+        Возвращает словарь с данными документа, готовый к сериализации
+        (например, в JSON).
         """
         return {
             "file_metadata": {
@@ -102,6 +122,7 @@ class EmbeddedDocument:
                 "size": self.file_metadata.size
             },
             "chunks": self.chunks,
+            "hash_ids": self.hash_ids,
             "text_embeddings": [
                 [float(x) for x in embedding]
                 for embedding in self.text_embeddings
