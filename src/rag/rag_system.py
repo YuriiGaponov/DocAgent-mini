@@ -168,7 +168,10 @@ class RAGSystem:
             )
             return {
                 'status': 'success',
-                'message': f'Коллекция {collection.name} создана'
+                'message': (
+                    f'Коллекция {collection.name} создана, '
+                    f'создано {collection.count()} записей'
+                )
             }
         except Exception as e:
             logger.error(f'Ошибка создания коллекции: {e}')

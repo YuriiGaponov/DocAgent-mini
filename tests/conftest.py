@@ -1,61 +1,109 @@
 """
-Модуль tests.conftest.py — конфигурация тестового окружения
-для DocAgent‑mini.
-
-Содержит фикстуры pytest для организации тестирования
-FastAPI‑приложения. Обеспечивает создание тестового клиента,
-который используется во всех интеграционных тестах для имитации
-HTTP‑запросов к API.
+Модуль conftest для pytest в проекте DocAgent‑mini: содержит общие фикстуры
+для тестов.
 """
 
+from datetime import datetime
 from pathlib import Path
-from typing import Generator
+from typing import Generator, List
 
 import pytest
 from fastapi.testclient import TestClient
 
 from main import app
-from src.settings import Settings
+from src import DocumentMetadata, EmbeddedDocument, Settings
 
 
 @pytest.fixture
 def client() -> TestClient:
     """
-    Фикстура pytest для создания тестового HTTP‑клиента.
+    Фикстура для создания тестового клиента FastAPI в проекте DocAgent‑mini.
 
-    Создаёт экземпляр TestClient на базе FastAPI‑приложения (app),
-    позволяя отправлять HTTP‑запросы к эндпоинтам в тестовом режиме
-    без запуска реального сервера.
-
-    Используется во всех интеграционных тестах проекта для:
-    * отправки запросов к API;
-    * проверки статусов ответов;
-    * валидации структуры и содержимого ответов.
-
-    Returns:
-        TestClient: Настроенный тестовый клиент для взаимодействия
-            с FastAPI‑приложением.
+    Возвращает экземпляр TestClient, инициализированный
+    с приложением app из модуля main.
     """
     return TestClient(app)
 
 
 @pytest.fixture
-def mock_settings() -> Settings:
+def mock_settings(temp_docs_dir: Path) -> Settings:
     """
-    Фикстура для создания мок‑настроек приложения.
+    Фикстура для создания мок‑настроек проекта DocAgent‑mini.
 
-    Возвращает экземпляр настроек с тестовыми значениями,
-    подходящими для запуска тестов. Позволяет изолировать тесты
-    от реальных настроек окружения.
-
-    Returns:
-        Settings: Экземпляр настроек приложения с тестовыми
-            значениями параметров.
+    Создаёт и возвращает экземпляр класса Settings с настройками
+    по умолчанию для использования в тестах. Устанавливает:
+    - путь к документации (DOC_PATH) равным temp_docs_dir;
+    - имя векторной БД (VECTOR_DB_NAME) как 'test_docs'.
     """
     settings = Settings()
-    settings.DOC_PATH = "tests/fixtures/test_docs"
-    settings.ALLOWED_FILENAME_PATTERN = r"^.*\.md$"
+    settings.DOC_PATH = temp_docs_dir
+    settings.VECTOR_DB_NAME = 'test_docs'
     return settings
+
+
+@pytest.fixture
+def one_paragraph_text() -> str:
+    """
+    Фикстура, предоставляющая тестовый текст из одного абзаца.
+
+    Используется для проверки функциональности обработки текста,
+    в т. ч. генерации эмбеддингов.
+    """
+    return 'Текст, состоящий из одного абзаца.'
+
+
+@pytest.fixture
+def two_paragraph_text() -> str:
+    """
+    Фикстура, предоставляющая тестовый текст из двух абзацев.
+
+    Используется для проверки обработки многоабзацного текста,
+    в т. ч. при генерации эмбеддингов для списков текстов.
+    """
+    return 'Первый абзац текста.\n\nВторой абзац текста.'
+
+
+@pytest.fixture
+def mock_embedded_docs(temp_docs_dir: Path) -> List[EmbeddedDocument]:
+    """
+    Фикстура, создающая список тестовых эмбеддированных документов.
+
+    Формирует два объекта EmbeddedDocument с тестовыми данными:
+    - метаданные файла (имя, тип, путь, время создания и изменения, размер);
+    - фрагменты текста (chunks);
+    - хеш‑идентификаторы (hash_ids);
+    - векторные представления текста (text_embeddings).
+
+    Используется для тестирования функционала работы с векторной базой данных
+    и поиска релевантных фрагментов.
+    """
+    doc1 = EmbeddedDocument(
+        file_metadata=DocumentMetadata(
+            name='doc1',
+            type='.md',
+            path=Path(temp_docs_dir / 'doc1'),
+            creation_time=datetime.now(),
+            modification_time=datetime.now(),
+            size=42
+        ),
+        chunks=['chunk1', 'chunk2'],
+        hash_ids=['412cb322137d81a5', '9118bfec488b6ef5'],
+        text_embeddings=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+    )
+    doc2 = EmbeddedDocument(
+        file_metadata=DocumentMetadata(
+            name='doc2',
+            type='.md',
+            path=Path(temp_docs_dir / 'doc2'),
+            creation_time=datetime.now(),
+            modification_time=datetime.now(),
+            size=42
+        ),
+        chunks=['chunk3', 'chunk4'],
+        hash_ids=['71a7adca1d7f1f4f', 'a8da422011656d8a'],
+        text_embeddings=[[0.7, 0.8, 0.9], [0.11, 0.12, 0.13]]
+    )
+    return [doc1, doc2]
 
 
 @pytest.fixture
@@ -63,88 +111,19 @@ def temp_docs_dir(tmp_path: Path) -> Generator[Path, None, None]:
     """
     Фикстура для создания временного каталога с тестовыми документами.
 
-    Создаёт временный каталог и наполняет его тестовыми файлами
-    разных типов (валидными и невалидными). Используется для
-    тестирования логики обработки документов.
+    Создаёт временный каталог 'docs' и наполняет его тестовыми файлами:
+    - valid_doc1.md — валидный Markdown‑документ;
+    - valid_doc2.md — валидный Markdown‑документ;
+    - not_valid_doc.exe — файл недопустимого расширения.
 
-    Args:
-        tmp_path (Path): Временный путь, предоставляемый pytest
-            для создания временных файлов и каталогов.
-
-    Yields:
-        Path: Путь к временному каталогу с тестовыми документами.
-            После завершения теста каталог автоматически удаляется.
+    Возвращает путь к созданному каталогу. После завершения теста каталог
+    автоматически удаляется (управление ресурсами через yield).
     """
     docs_dir: Path = tmp_path / "docs"
     docs_dir.mkdir()
-
-    # Создаём тестовые файлы
-    (docs_dir / "valid_doc.md").write_text("Content of valid document")
-    (docs_dir / "another_doc.md").write_text("Another valid document")
-    (docs_dir / "invalid_file.exe").write_text("Should be ignored")
-
+    (docs_dir / "valid_doc1.md").write_text("Content of 1th valid document")
+    (docs_dir / "valid_doc2.md").write_text("Content of 2nd valid document")
+    (docs_dir / "not_valid_doc.exe").write_text(
+        "Content of not valid document"
+    )
     yield docs_dir
-
-
-@pytest.fixture
-def setup_test_docs_for_get_docs_data(tmp_path: Path) -> Path:
-    """
-    Создаёт тестовую директорию с документами для get_docs_data.
-
-    Формирует временный каталог с тестовыми Markdown‑файлами,
-    содержащими структурированный текст. Используется для проверки
-    корректности извлечения данных из документов.
-
-    Args:
-        tmp_path (Path): Временный путь от pytest для создания
-            тестовых файлов.
-
-    Returns:
-        Path: Путь к каталогу с тестовыми документами (doc1.md,
-            doc2.md).
-    """
-    docs_dir = tmp_path / "test_docs_get_data"
-    docs_dir.mkdir()
-
-    # Документ 1
-    (docs_dir / "doc1.md").write_text(
-        "Документ 1\n\n"
-        "Содержимое первого документа.\n\n"
-        "Важные детали документа 1.",
-        encoding='utf-8'
-    )
-    # Документ 2
-    (docs_dir / "doc2.md").write_text(
-        "Документ 2\n\n"
-        "Содержание второго документа.\n\n"
-        "Ключевые моменты документа 2.",
-        encoding='utf-8'
-    )
-
-    return docs_dir
-
-
-@pytest.fixture
-def temp_file(tmp_path: Path) -> Path:
-    """
-    Фикстура для создания временного тестового файла.
-
-    Генерирует временный Markdown‑файл с типовым содержимым.
-    Используется в тестах, требующих наличия файла для обработки.
-
-    Args:
-        tmp_path (Path): Временный путь от pytest для размещения
-            тестового файла.
-
-    Returns:
-        Path: Полный путь к созданному тестовому файлу
-            (test_document.md).
-    """
-    file_path = tmp_path / "test_document.md"
-    content = (
-        "Заголовок\n\nПервый абзац.\n\n"
-        "Второй абзац с важной информацией.\n\n"
-        "Заключение."
-    )
-    file_path.write_text(content, encoding='utf-8')
-    return file_path

@@ -89,14 +89,17 @@ class VectorDBManager:
         logger.debug(f'Коллекция {collection.name} создана/получена')
 
         for doc in docs:
+            file_metadata = doc.file_metadata.to_dict()
             collection.add(
                 ids=doc.hash_ids,
                 embeddings=doc.text_embeddings,
-                metadatas=doc.file_metadata,
+                metadatas=[
+                    file_metadata for _ in range(len(doc.text_embeddings))
+                ],
                 documents=doc.chunks
             )
             logger.debug(
-                f'Добавлен документ {doc.file_metadata["name"]}: '
+                f'Добавлен документ {doc.file_metadata.name}: '
                 f'{len(doc.chunks)} чанков'
             )
 
