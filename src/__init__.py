@@ -18,10 +18,11 @@
 
 from src.models import ReadedDocument
 from src.settings import Settings
+from src.rag.embedding_manager import EmbeddingService
 from src.rag.loader import DocumentationFileLoader
 from src.rag.reader import DocumentationFileReader
 
 __all__ = [
-    'DocumentationFileLoader', 'DocumentationFileReader', 'ReadedDocument',
-    'Settings'
+    'DocumentationFileLoader', 'DocumentationFileReader', 'EmbeddingService',
+    'ReadedDocument', 'Settings'
 ]

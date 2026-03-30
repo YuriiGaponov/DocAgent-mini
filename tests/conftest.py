@@ -39,6 +39,22 @@ def mock_settings(temp_docs_dir: Path) -> Settings:
 
 
 @pytest.fixture
+def one_paragraph_text() -> str:
+    """
+    Фикстура, предоставляющая тестовый текст из одного абзаца.
+    """
+    return 'Текст, состоящий из одного абзаца.'
+
+
+@pytest.fixture
+def two_paragraph_text() -> str:
+    """
+    Фикстура, предоставляющая тестовый текст из двух абзацев.
+    """
+    return 'Первый абзац текста.\n\nВторой абзац текста.'
+
+
+@pytest.fixture
 def temp_docs_dir(tmp_path: Path) -> Generator[Path, None, None]:
     """
     Фикстура для создания временного каталога с тестовыми документами.
