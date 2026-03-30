@@ -32,6 +32,7 @@ class TestRAGVectorDBManager:
         - возможность получения конкретных записей по ID
           (запрос двух документов и проверка длины результата — 2).
         """
+        mock_settings.VECTOR_DB_NAME = 'TestRAGVectorDBManager'
         db_manager = VectorDBManager(mock_settings)
         assert db_manager is not None, 'Менеджер векторной БД не создан'
 

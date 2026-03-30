@@ -20,11 +20,12 @@ from src.models import DocumentMetadata, EmbeddedDocument, ReadedDocument
 from src.settings import Settings
 from src.rag.embedding_manager import EmbeddingService
 from src.rag.loader import DocumentationFileLoader
+from src.rag.rag_system import RAGSystem
 from src.rag.reader import DocumentationFileReader
 from src.rag.vectorDB_manager import VectorDBManager
 
 __all__ = [
     'DocumentationFileLoader', 'DocumentationFileReader', 'DocumentMetadata',
-    'EmbeddingService', 'EmbeddedDocument', 'ReadedDocument', 'Settings',
-    'VectorDBManager'
+    'EmbeddingService', 'EmbeddedDocument', 'RAGSystem', 'ReadedDocument',
+    'Settings', 'VectorDBManager'
 ]
