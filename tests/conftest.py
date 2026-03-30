@@ -85,7 +85,7 @@ def mock_embedded_docs(temp_docs_dir: Path) -> List[EmbeddedDocument]:
             creation_time=datetime.now(),
             modification_time=datetime.now(),
             size=42
-        ).to_dict(),
+        ),
         chunks=['chunk1', 'chunk2'],
         hash_ids=['412cb322137d81a5', '9118bfec488b6ef5'],
         text_embeddings=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
@@ -98,7 +98,7 @@ def mock_embedded_docs(temp_docs_dir: Path) -> List[EmbeddedDocument]:
             creation_time=datetime.now(),
             modification_time=datetime.now(),
             size=42
-        ).to_dict(),
+        ),
         chunks=['chunk3', 'chunk4'],
         hash_ids=['71a7adca1d7f1f4f', 'a8da422011656d8a'],
         text_embeddings=[[0.7, 0.8, 0.9], [0.11, 0.12, 0.13]]
