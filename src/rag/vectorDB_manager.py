@@ -92,7 +92,9 @@ class VectorDBManager:
             collection.add(
                 ids=doc.hash_ids,
                 embeddings=doc.text_embeddings,
-                metadatas=doc.file_metadata,
+                metadatas=[
+                    doc.file_metadata for _ in range(len(doc.text_embeddings))
+                ],
                 documents=doc.chunks
             )
             logger.debug(
