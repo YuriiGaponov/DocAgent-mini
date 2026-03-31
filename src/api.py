@@ -7,10 +7,13 @@
 сервиса (/health).
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from src.logger import logger
 from src.models import AskRequest
+from src.settings import Settings, get_settings
+from src.rag.rag_system import RAGSystem
+
 
 router = APIRouter()
 """Экземпляр APIRouter — маршрутизатор
@@ -49,6 +52,10 @@ async def health():
 
 
 @router.post("/ask")
-async def ask(request_data: AskRequest):
-    logger.info('Запрос на эндпоинт "/ask"')
-    pass
+async def ask(
+    request_data: AskRequest, settings: Settings = Depends(get_settings)
+):
+    logger.info(f'Запрос на эндпоинт "/ask", {request_data}')
+    rag_sys = RAGSystem(settings)
+    result = await rag_sys.ask(request_data)
+    return result

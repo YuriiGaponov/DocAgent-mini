@@ -9,6 +9,7 @@
 
 from src.settings import Settings
 from src.logger import logger
+from src.models import AskRequest
 from src.rag.collection_initiator import CollectionInitiator
 
 
@@ -25,6 +26,7 @@ class RAGSystem:
         Инициализирует систему RAG с заданными настройками.
         """
         self.initiator = CollectionInitiator(settings)
+        self.collection = self.initiator.collection
         logger.debug(f'Инициализирована RAG-система: {self.__class__}')
 
     async def initiate_collection(self):
@@ -39,5 +41,10 @@ class RAGSystem:
         logger.debug('Запуск RAGSystem.initiate_collection.')
         return await self.initiator.create_docs_collection()
 
-    async def ask(self):
-        pass
+    async def ask(self, request_data: AskRequest):
+        logger.debug(f'Запуск RAGSystem.ask, request_data: {request_data}')
+        result = self.collection.query(
+            query_texts=request_data.query,
+            n_results=1
+        )
+        return result
