@@ -57,6 +57,7 @@ class RAGSystem:
         self.filereader = DocumentationFileReader()
         self.embedder = EmbeddingService(settings)
         self.client = VectorDBManager(settings)
+        self.collection = self.client.collection
         logger.debug(f'Инициализирована RAG-система: {self.__class__}')
 
     async def get_docs(self) -> List[Path]:
@@ -163,15 +164,15 @@ class RAGSystem:
         """
         try:
             docs = await self.get_docs_data()
-            collection = self.client.get_or_create_collection(docs)
+            self.client.add_docs_to_collection(docs)
             logger.debug(
-                f'Коллекция {collection.name} успешно создана и заполнена'
+                f'Коллекция {self.collection.name} успешно создана и заполнена'
             )
             return {
                 'status': 'success',
                 'message': (
-                    f'Коллекция {collection.name} создана, '
-                    f'создано {collection.count()} записей'
+                    f'Коллекция {self.collection.name} создана, '
+                    f'создано {self.collection.count()} записей'
                 )
             }
         except Exception as e:
