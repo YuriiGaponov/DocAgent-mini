@@ -78,8 +78,6 @@ class VectorDBManager:
         * создание/получение коллекции по имени из настроек (VECTOR_DB_NAME);
         * настройку функции эмбеддингов;
         * добавление документов: чанков, эмбеддингов, метаданных, ID.
-
-        Логирует операции создания коллекции и загрузки данных.
         """
         logger.debug('Запуск VectorDBManager.get_or_create_collection')
         collection = self.client.get_or_create_collection(
@@ -88,21 +86,13 @@ class VectorDBManager:
         )
         logger.debug(f'Коллекция {collection.name} создана/получена')
 
-        logger.trace(f'начало добавления доукментов в коллекцию {collection.name}')
         for doc in docs:
-            logger.trace(f'добавление {doc.__class__}')
-            # logger.trace(f'ids={doc.hash_ids}')
-            # logger.trace(f'embeddings={doc.text_embeddings}')
-            # logger.trace(f'metadatas={[doc.file_metadata for _ in range(len(doc.text_embeddings))]}')
-            # logger.trace(f'documents={doc.chunks}')
-            # file_metadata = doc.file_metadata.to_dict()
             collection.add(
                 ids=doc.hash_ids,
                 embeddings=doc.text_embeddings,
                 metadatas=[
-                    # file_metadata for _ in range(len(doc.text_embeddings))
-                    # doc.file_metadata for _ in range(len(doc.text_embeddings))
-                    doc.file_metadata.model_dump(mode='json') for _ in range(len(doc.text_embeddings))
+                    doc.file_metadata.model_dump(mode='json')
+                    for _ in range(len(doc.text_embeddings))
                 ],
                 documents=doc.chunks
             )
