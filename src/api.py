@@ -72,7 +72,8 @@ async def temp_endpoint(settings: Settings = Depends(get_settings)):
     logger.debug(f'Получен экземпляр настроек: {settings.__class__}')
     rag_sys = RAGSystem(settings)
     logger.debug(f'Создан экземпляр RAG-системы: {rag_sys.__class__}')
-    result = await rag_sys.create_docs_collection()
+    # result = await rag_sys.create_docs_collection()
+    result = await rag_sys.initiate_collection()
     end_time = time.time()  # Замер времени окончания
     execution_time = end_time - start_time  # Расчёт времени выполнения
     logger.info(f'Время выполнения temp_endpoint: {execution_time:.4f} секунд')
