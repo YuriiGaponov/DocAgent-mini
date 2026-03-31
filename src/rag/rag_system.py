@@ -134,15 +134,16 @@ class RAGSystem:
                 hash_ids = [self.generate_hash_id(chunk) for chunk in chunks]
                 embeddings = self.generate_embedding(chunks)
                 embedded_doc = EmbeddedDocument(
-                    readed_doc.file_metadata,
-                    chunks,
-                    hash_ids,
-                    embeddings
+                    file_metadata=readed_doc.file_metadata,
+                    chunks=chunks,
+                    hash_ids=hash_ids,
+                    text_embeddings=embeddings
                 )
                 emb_docs_data.append(embedded_doc)
 
             logger.debug(
-                f'Подготовлены данные {len(emb_docs_data)} документов'
+                f'Подготовлены данные для добавления {len(emb_docs_data)} '
+                f'документов\nсоздан экземпляр {emb_docs_data.__class__}'
             )
             return emb_docs_data
         except Exception as e:
