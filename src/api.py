@@ -12,6 +12,7 @@ import time
 from fastapi import APIRouter
 
 from src.logger import logger
+from src.models import AskRequest
 
 router = APIRouter()
 """Экземпляр APIRouter — маршрутизатор
@@ -47,6 +48,11 @@ async def health():
     except Exception as e:
         logger.error(f'Ошибка при проверке здоровья приложения: {e}')
         return {"status": "unhealthy", "error": str(e)}
+
+
+@router.post("/ask")
+async def ask(request_data: AskRequest):
+    pass
 
 
 # Временный функционал для целей разработки.

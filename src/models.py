@@ -62,3 +62,18 @@ class EmbeddedDocument(BaseModel):
     chunks: List[str]
     hash_ids: List[str]
     text_embeddings: List[List[float]]
+
+
+class AskRequest(BaseModel):
+    """
+    Модель запроса от пользователя для RAG‑системы проекта DocAgent‑mini.
+
+    Содержит:
+    - идентификатор пользователя (user_id) — уникальный номер,
+      идентифицирующий пользователя в системе;
+    - текстовый запрос (query) — вопрос или инструкция от пользователя,
+      которую система должна обработать для поиска релевантной информации
+      в документации и генерации ответа.
+    """
+    user_id: int
+    query: str
