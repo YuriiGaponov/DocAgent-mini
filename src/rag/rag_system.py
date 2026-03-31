@@ -38,3 +38,6 @@ class RAGSystem:
         """
         logger.debug('Запуск RAGSystem.initiate_collection.')
         return await self.initiator.create_docs_collection()
+
+    async def ask(self):
+        pass

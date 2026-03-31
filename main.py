@@ -13,6 +13,7 @@ from fastapi import FastAPI
 
 from src.logger import logger
 from src.api import router
+from src.rag.rag_system import RAGSystem
 from src.settings import Settings, get_settings
 
 
@@ -30,6 +31,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     logger.info('Начало запуска DocAgent‑mini')
     try:
+        rag_system = RAGSystem(settings)
+        init_collection = await rag_system.initiate_collection()
+        if init_collection.get('status') != 'success':
+            logger.error(
+                f'Ошибка инициализации коллекции: '
+                f'{init_collection.get("message")}'
+            )
+            raise RuntimeError('Не удалось инициализировать векторную БД')
+        logger.success('Коллекция документов успешно инициализирована')
         logger.success('DocAgent‑mini успешно запущен')
         yield
     except Exception as e:
