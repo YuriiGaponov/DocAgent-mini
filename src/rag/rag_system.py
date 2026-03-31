@@ -28,7 +28,7 @@ from typing import List
 
 import asyncio
 
-from src.models import EmbeddedDocument
+from src.models import EmbeddedDocument, ReadedDocument
 from src.settings import Settings
 from src.logger import logger
 from src.rag.embedding_manager import EmbeddingService
@@ -128,21 +128,34 @@ class RAGSystem:
             readed_docs = await asyncio.gather(
                 *read_tasks, return_exceptions=True
             )
+            # Фильтруем только успешные результаты (объекты ReadedDocument)
+            valid_docs = [
+                doc for doc in readed_docs
+                if isinstance(doc, ReadedDocument)
+            ]
 
-            for readed_doc in readed_docs:
+            # for readed_doc in readed_docs:
+            for readed_doc in valid_docs:
                 chunks = self.get_chunks(readed_doc.file_text)
                 hash_ids = [self.generate_hash_id(chunk) for chunk in chunks]
                 embeddings = self.generate_embedding(chunks)
+                # embedded_doc = EmbeddedDocument(
+                #     readed_doc.file_metadata,
+                #     chunks,
+                #     hash_ids,
+                #     embeddings
+                # )
                 embedded_doc = EmbeddedDocument(
-                    readed_doc.file_metadata,
-                    chunks,
-                    hash_ids,
-                    embeddings
+                    file_metadata=readed_doc.file_metadata,
+                    chunks=chunks,
+                    hash_ids=hash_ids,
+                    text_embeddings=embeddings
                 )
                 emb_docs_data.append(embedded_doc)
 
             logger.debug(
-                f'Подготовлены данные {len(emb_docs_data)} документов'
+                f'Подготовлены данные для добавления {len(emb_docs_data)} документов\n'
+                f'создан экземпляр {emb_docs_data.__class__}'
             )
             return emb_docs_data
         except Exception as e:
