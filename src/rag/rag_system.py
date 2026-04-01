@@ -45,6 +45,7 @@ class RAGSystem:
         logger.debug(f'Запуск RAGSystem.ask, request_data: {request_data}')
         result = self.collection.query(
             query_texts=request_data.query,
-            n_results=1
+            n_results=2
         )
-        return result
+        context = result['documents']
+        return context
