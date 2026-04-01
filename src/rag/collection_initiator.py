@@ -6,7 +6,6 @@
 проекта DocAgent‑mini.
 """
 
-import hashlib
 from pathlib import Path
 from typing import List
 
@@ -18,6 +17,7 @@ from src.logger import logger
 from src.rag.embedding_manager import EmbeddingService
 from src.rag.loader import DocumentationFileLoader
 from src.rag.reader import DocumentationFileReader
+from src.rag.utils import generate_hash_id, get_chunks
 from src.rag.vectorDB_manager import VectorDBManager
 
 
@@ -59,43 +59,6 @@ class CollectionInitiator:
         logger.debug('Запуск CollectionInitiator.get_docs')
         return await self.fileloader.get_docs()
 
-    def generate_embedding(
-            self, text: str | List[str]
-    ) -> List[float] | List[List[float]]:
-        """
-        Генерирует векторные представления (эмбеддинги) для текста.
-
-        Использует сервис эмбеддингов для преобразования текстовых данных
-        в векторы фиксированной размерности.
-        """
-        logger.debug(
-            'Запуск CollectionInitiator.generate_embedding.'
-        )
-        embedding = self.embedder.generate_embedding(text)
-        logger.debug('Эмбеддинг создан')
-        return embedding
-
-    def get_chunks(self, text: str) -> List[str]:
-        """
-        Разбивает текст на смысловые блоки (чанки) по двойным переносам строк.
-
-        Возвращает список строк, где каждый элемент — отдельный чанк текста.
-        """
-        logger.debug('Запуск CollectionInitiator.get_chunks')
-        chunks = text.split('\n\n')
-        logger.debug('Разбиение на чанки выполнено')
-        return chunks
-
-    def generate_hash_id(self, content: str) -> str:
-        """
-        Генерирует короткий хеш‑идентификатор для содержимого.
-
-        Использует SHA‑256 и обрезает результат до 16 символов
-        для компактности.
-        """
-        hash_object = hashlib.sha256(content.encode())
-        return hash_object.hexdigest()[:16]
-
     async def get_docs_data(self) -> List[EmbeddedDocument]:
         """
         Асинхронно собирает полные данные по всем документам.
@@ -120,9 +83,9 @@ class CollectionInitiator:
             )
 
             for readed_doc in readed_docs:
-                chunks = self.get_chunks(readed_doc.file_text)
-                hash_ids = [self.generate_hash_id(chunk) for chunk in chunks]
-                embeddings = self.generate_embedding(chunks)
+                chunks = get_chunks(readed_doc.file_text)
+                hash_ids = [generate_hash_id(chunk) for chunk in chunks]
+                embeddings = self.embedder.generate_embedding(chunks)
                 embedded_doc = EmbeddedDocument(
                     file_metadata=readed_doc.file_metadata,
                     chunks=chunks,
