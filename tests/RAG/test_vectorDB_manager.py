@@ -5,6 +5,7 @@
 в рамках функционала RAG (Retrieval‑Augmented Generation).
 """
 
+
 from typing import List
 
 from src import EmbeddedDocument, Settings, VectorDBManager
@@ -16,7 +17,7 @@ class TestRAGVectorDBManager:
     DocAgent‑mini (компонент RAG).
     """
 
-    def test_add_docs_success(
+    def test_collection_initiate_success(
             self,
             mock_settings: Settings,
             mock_embedded_docs: List[EmbeddedDocument]
@@ -36,9 +37,11 @@ class TestRAGVectorDBManager:
         db_manager = VectorDBManager(mock_settings)
         assert db_manager is not None, 'Менеджер векторной БД не создан'
 
-        collection = db_manager.get_or_create_collection(mock_embedded_docs)
+        collection = db_manager.collection
         assert collection is not None, 'Коллекция не создана'
         assert collection.name == mock_settings.VECTOR_DB_NAME
+
+        db_manager.add_docs_to_collection(mock_embedded_docs)
         assert collection.count() == 4
 
         records = collection.get(ids=['412cb322137d81a5', '71a7adca1d7f1f4f'])

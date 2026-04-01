@@ -33,7 +33,7 @@ class TestRAGSystem:
         rag_sys = RAGSystem(mock_settings)
         assert rag_sys is not None, 'RAG‑система не инициализирована'
 
-        result = await rag_sys.create_docs_collection()
+        result = await rag_sys.initiate_collection()
         assert result['status'] == 'success'
         assert result['message'] == (
             f'Коллекция {mock_settings.VECTOR_DB_NAME} создана, '

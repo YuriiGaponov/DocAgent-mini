@@ -2,177 +2,50 @@
 Модуль src.rag.rag_system.py — реализация системы RAG
 (Retrieval‑Augmented Generation) для DocAgent‑mini.
 
-Содержит основную бизнес‑логику работы с документами в рамках пайплайна RAG:
-* загрузку файлов через DocumentationFileLoader (фильтрация по расширениям,
-  проверка безопасности путей);
-* чтение и извлечение данных через DocumentationFileReader (метаданные,
-  текст, разбиение на чанки);
-* генерацию эмбеддингов через EmbeddingService;
-* интеграцию компонентов в классе RAGSystem с унифицированным
-  интерфейсом.
-
-Ключевые возможности:
-* асинхронное получение списка валидных документов (get_docs);
-* сбор полных данных по документам (get_docs_data) с метаданными,
-  текстом и чанками;
-* преобразование текста в векторные представления (generate_embedding);
-* создание коллекции документов в векторной БД (create_docs_collection).
-
-Модуль — центральное звено подготовки данных для этапов RAG: поиска
-фрагментов и генерации ответов на основе документации.
+Предоставляет высокоуровневый интерфейс для подготовки данных
+и работы с векторной БД в рамках RAG‑пайплайна.
 """
 
-import hashlib
-from pathlib import Path
-from typing import List
 
-import asyncio
-
-from src.models import EmbeddedDocument
 from src.settings import Settings
 from src.logger import logger
-from src.rag.embedding_manager import EmbeddingService
-from src.rag.loader import DocumentationFileLoader
-from src.rag.reader import DocumentationFileReader
-from src.rag.vectorDB_manager import VectorDBManager
+from src.models import AskRequest
+from src.rag.collection_initiator import CollectionInitiator
 
 
 class RAGSystem:
     """
-    Основная система RAG (Retrieval‑Augmented Generation) для DocAgent‑mini.
+    Основная система RAG для DocAgent‑mini.
 
-    Интегрирует загрузчик, читатель, сервис эмбеддингов и менеджер
-    векторной БД для подготовки данных документов. Предоставляет
-    унифицированный интерфейс для поиска фрагментов и генерации ответов.
+    Оркестрирует взаимодействие компонентов пайплайна и обеспечивает
+    подготовку данных для векторной БД.
     """
 
     def __init__(self, settings: Settings):
         """
         Инициализирует систему RAG с заданными настройками.
-
-        Создаёт экземпляры загрузчика, читателя, сервиса эмбеддингов
-        и менеджера векторной БД.
         """
-        self.fileloader = DocumentationFileLoader(settings)
-        self.filereader = DocumentationFileReader()
-        self.embedder = EmbeddingService(settings)
-        self.client = VectorDBManager(settings)
+        self.initiator = CollectionInitiator(settings)
+        self.collection = self.initiator.collection
         logger.debug(f'Инициализирована RAG-система: {self.__class__}')
 
-    async def get_docs(self) -> List[Path]:
+    async def initiate_collection(self):
         """
-        Асинхронно получает список документов через загрузчик.
+        Асинхронно создаёт коллекцию документов в векторной БД
+        через оркестратор.
 
-        Делегирует загрузку и фильтрацию файлов экземпляру
-        DocumentationFileLoader.
+        Возвращает словарь с полями:
+        - 'status': статус выполнения;
+        - 'message': описание результата.
         """
-        logger.debug('Запуск RAGSystem.get_docs — получение документов.')
-        return await self.fileloader.get_docs()
+        logger.debug('Запуск RAGSystem.initiate_collection.')
+        return await self.initiator.create_docs_collection()
 
-    def generate_embedding(
-            self, text: str | List[str]
-    ) -> List[float] | List[List[float]]:
-        """
-        Превращает текст в векторные представления (эмбеддинги).
-
-        Использует сервис эмбеддингов для преобразования текстовых данных
-        в векторы фиксированной размерности.
-        """
-        logger.debug(
-            'Запуск RAGSystem.generate_embedding — превратить текст в векторы.'
+    async def ask(self, request_data: AskRequest):
+        logger.debug(f'Запуск RAGSystem.ask, request_data: {request_data}')
+        result = self.collection.query(
+            query_texts=request_data.query,
+            n_results=2
         )
-        embedding = self.embedder.generate_embedding(text)
-        logger.debug('Эмбеддинг создан')
-        return embedding
-
-    def get_chunks(self, text: str) -> List[str]:
-        """
-        Разбивает текст на смысловые блоки (чанки) по двойным переносам строк.
-
-        Возвращает список строк, где каждый элемент — отдельный чанк текста.
-        """
-        logger.debug('Запуск RAGSystem.get_chunks')
-        chunks = text.split('\n\n')
-        logger.debug('Разбиение на чанки выполнено')
-        return chunks
-
-    def generate_hash_id(self, content: str) -> str:
-        """
-        Генерирует короткий хеш‑идентификатор для содержимого.
-
-        Использует SHA‑256 и обрезает результат до 16 символов
-        для компактности.
-        """
-        hash_object = hashlib.sha256(content.encode())
-        return hash_object.hexdigest()[:16]
-
-    async def get_docs_data(self) -> List[EmbeddedDocument]:
-        """
-        Асинхронно собирает полные данные по всем документам.
-
-        Для каждого документа выполняет:
-        * извлечение метаданных;
-        * чтение текстового содержимого;
-        * разбиение текста на чанки;
-        * генерацию эмбеддингов для каждого чанка;
-        * формирование структуры EmbeddedDocument с уникальными ID.
-
-        Возвращает список объектов EmbeddedDocument для дальнейшего
-        использования в пайплайне RAG.
-        """
-        try:
-            emb_docs_data = []
-            docs = await self.get_docs()
-
-            read_tasks = [self.filereader.read_file(doc) for doc in docs]
-            readed_docs = await asyncio.gather(
-                *read_tasks, return_exceptions=True
-            )
-
-            for readed_doc in readed_docs:
-                chunks = self.get_chunks(readed_doc.file_text)
-                hash_ids = [self.generate_hash_id(chunk) for chunk in chunks]
-                embeddings = self.generate_embedding(chunks)
-                embedded_doc = EmbeddedDocument(
-                    readed_doc.file_metadata,
-                    chunks,
-                    hash_ids,
-                    embeddings
-                )
-                emb_docs_data.append(embedded_doc)
-
-            logger.debug(
-                f'Подготовлены данные {len(emb_docs_data)} документов'
-            )
-            return emb_docs_data
-        except Exception as e:
-            logger.error(f'Ошибка в get_docs_data: {e}')
-            raise
-
-    async def create_docs_collection(self):
-        """
-        Создаёт коллекцию документов в векторной базе данных.
-
-        Выполняет:
-        * сбор данных по документам через get_docs_data;
-        * создание/получение коллекции в векторной БД через VectorDBManager;
-        * загрузку данных (чанки, эмбеддинги, метаданные, ID) в коллекцию.
-
-        Возвращает статус операции и имя созданной коллекции.
-        """
-        try:
-            docs = await self.get_docs_data()
-            collection = self.client.get_or_create_collection(docs)
-            logger.debug(
-                f'Коллекция {collection.name} успешно создана и заполнена'
-            )
-            return {
-                'status': 'success',
-                'message': (
-                    f'Коллекция {collection.name} создана, '
-                    f'создано {collection.count()} записей'
-                )
-            }
-        except Exception as e:
-            logger.error(f'Ошибка создания коллекции: {e}')
-            raise
+        context = result['documents']
+        return context

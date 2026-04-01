@@ -18,6 +18,7 @@ from typing import List
 
 from chromadb import EphemeralClient
 from chromadb.api import ClientAPI
+from chromadb.api.models.Collection import Collection
 from chromadb.utils.embedding_functions import (
     SentenceTransformerEmbeddingFunction
 )
@@ -45,6 +46,7 @@ class VectorDBManager:
         self._client: None | ClientAPI = None
         self.settings = settings
         self._embedding_function = None
+        self._collection = None
 
     @property
     def client(self) -> ClientAPI:
@@ -69,7 +71,8 @@ class VectorDBManager:
             )
         return self._embedding_function
 
-    def get_or_create_collection(self, docs: List[EmbeddedDocument]) -> None:
+    @property
+    def collection(self) -> Collection:
         """
         Получает существующую или создаёт новую коллекцию в БД и загружает
         в неё документы.
@@ -78,23 +81,26 @@ class VectorDBManager:
         * создание/получение коллекции по имени из настроек (VECTOR_DB_NAME);
         * настройку функции эмбеддингов;
         * добавление документов: чанков, эмбеддингов, метаданных, ID.
-
-        Логирует операции создания коллекции и загрузки данных.
         """
-        logger.debug('Запуск VectorDBManager.get_or_create_collection')
-        collection = self.client.get_or_create_collection(
-            self.settings.VECTOR_DB_NAME,
-            embedding_function=self.embedding_function
-        )
-        logger.debug(f'Коллекция {collection.name} создана/получена')
+        if self._collection is None:
+            logger.debug('Запуск VectorDBManager.get_or_create_collection')
+            _collection = self.client.get_or_create_collection(
+                self.settings.VECTOR_DB_NAME,
+                embedding_function=self.embedding_function
+            )
+            logger.debug(f'Коллекция {_collection.name} создана/получена')
+        return _collection
 
+    def add_docs_to_collection(self, docs: List[EmbeddedDocument]) -> None:
+
+        collection: Collection = self.collection
         for doc in docs:
-            file_metadata = doc.file_metadata.to_dict()
             collection.add(
                 ids=doc.hash_ids,
                 embeddings=doc.text_embeddings,
                 metadatas=[
-                    file_metadata for _ in range(len(doc.text_embeddings))
+                    doc.file_metadata.model_dump(mode='json')
+                    for _ in range(len(doc.text_embeddings))
                 ],
                 documents=doc.chunks
             )
@@ -106,4 +112,3 @@ class VectorDBManager:
         logger.debug(
             f'Загрузка завершена: обработано {len(docs)} документов'
         )
-        return collection

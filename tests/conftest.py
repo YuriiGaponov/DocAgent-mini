@@ -5,7 +5,7 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Generator, List
+from typing import Dict, Generator, List
 
 import pytest
 from fastapi.testclient import TestClient
@@ -127,3 +127,21 @@ def temp_docs_dir(tmp_path: Path) -> Generator[Path, None, None]:
         "Content of not valid document"
     )
     yield docs_dir
+
+
+@pytest.fixture
+def ask_test_data() -> Dict[str, int]:
+    """
+    Фикстура, предоставляющая тестовые данные для запроса к эндпоинту /ask.
+
+    Содержит:
+    - идентификатор пользователя (user_id);
+    - текстовый запрос (query) для тестирования RAG‑системы.
+
+    Используется для проверки обработки пользовательских запросов
+    через HTTP‑интерфейс.
+    """
+    return {
+        'user_id': 123,
+        'query': 'Что такое FastAPI?'
+    }
