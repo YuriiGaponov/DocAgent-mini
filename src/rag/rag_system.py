@@ -46,10 +46,11 @@ class RAGSystem:
 
     async def ask(self, request_data: AskRequest):
         logger.debug(f'Запуск RAGSystem.ask, request_data: {request_data}')
+        question = request_data.query
         result = self.collection.query(
-            query_texts=request_data.query
+            query_texts=question
         )
         passages = [{'text': text} for text in result['documents'][0]]
-        rerank_request = RerankRequest(request_data.query, passages)
-        context = self.ranker.rerank(rerank_request)
-        return context[0]['text']
+        rerank_request = RerankRequest(question, passages)
+        context = self.ranker.rerank(rerank_request)[0]['text']
+        return context
