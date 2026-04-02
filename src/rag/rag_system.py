@@ -46,7 +46,15 @@ class RAGSystem:
         logger.debug('Запуск RAGSystem.initiate_collection.')
         return await self.initiator.create_docs_collection()
 
-    async def ask(self, request_data: AskRequest):
+    async def ask(self, request_data: AskRequest) -> str:
+        """
+        Обрабатывает пользовательский запрос через пайплайн RAG.
+
+        Выполняет:
+        * поиск релевантных фрагментов в векторной БД;
+        * реранкинг результатов;
+        * генерацию ответа с помощью LLM на основе контекста.
+        """
         logger.debug(f'Запуск RAGSystem.ask, request_data: {request_data}')
         question = request_data.query
         result = self.collection.query(

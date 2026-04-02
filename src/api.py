@@ -55,6 +55,12 @@ async def health():
 async def ask(
     request_data: AskRequest, settings: Settings = Depends(get_settings)
 ):
+    """
+    Обрабатывает пользовательский запрос через RAG‑систему.
+
+    Принимает вопрос от пользователя, передаёт его в RAGSystem для обработки
+    и возвращает сгенерированный ответ.
+    """
     logger.info(f'Запрос на эндпоинт "/ask", {request_data}')
     try:
         rag_sys = RAGSystem(settings)
