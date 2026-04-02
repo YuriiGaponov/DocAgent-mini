@@ -7,6 +7,7 @@
 """
 
 
+import ollama
 from flashrank import Ranker, RerankRequest
 
 from src.settings import Settings
@@ -27,6 +28,7 @@ class RAGSystem:
         """
         Инициализирует систему RAG с заданными настройками.
         """
+        self.llm_model = settings.LLM_MODEL
         self.initiator = CollectionInitiator(settings)
         self.collection = self.initiator.collection
         self.ranker = Ranker()
@@ -50,7 +52,23 @@ class RAGSystem:
         result = self.collection.query(
             query_texts=question
         )
+        logger.debug('Получен контент из векторной БД.')
         passages = [{'text': text} for text in result['documents'][0]]
         rerank_request = RerankRequest(question, passages)
         context = self.ranker.rerank(rerank_request)[0]['text']
-        return context
+        logger.debug('Выполнен реранкинг.')
+        prompt = (
+            f'Отвечай только на основе следующего контекста.'
+            f'Если в контексте нет нужных данных для ответа'
+            f'ответь дословно: "Предоставлен нерелевантный контекст"'
+            f'НЕ ВКЛЮЧАЙ в ответ данные, полученные не из контекста'
+            f'Контекст: {context}'
+            f'Вопрос: {question}'
+        )
+        response = ollama.chat(
+            model=self.llm_model,
+            messages=[{"role": "user", "content": prompt}],
+            options={"temperature": 0.1}
+        )
+        logger.debug('Получен ответ LLM.')
+        return response['message']['content']

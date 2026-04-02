@@ -59,6 +59,7 @@ async def ask(
     try:
         rag_sys = RAGSystem(settings)
         response = await rag_sys.ask(request_data)
+        logger.info('Ответ получен.')
         return {'status': 'success', 'response': response}
     except Exception as e:
         logger.error(f'Ошибка при при подготовке ответа: {e}')

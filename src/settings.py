@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = 'all-MiniLM-L6-v2'
     VECTOR_DB_NAME: str = 'docs'
 
+    # Настройки LLM
+    LLM_MODEL: str = 'mistral'
+
     model_config = SettingsConfigDict(
         env_file=(BASE_DIR / '.env'),
         env_file_encoding='utf-8',
