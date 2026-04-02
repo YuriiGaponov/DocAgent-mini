@@ -7,6 +7,8 @@
 """
 
 
+from flashrank import Ranker, RerankRequest
+
 from src.settings import Settings
 from src.logger import logger
 from src.models import AskRequest
@@ -27,6 +29,7 @@ class RAGSystem:
         """
         self.initiator = CollectionInitiator(settings)
         self.collection = self.initiator.collection
+        self.ranker = Ranker()
         logger.debug(f'Инициализирована RAG-система: {self.__class__}')
 
     async def initiate_collection(self):
@@ -44,8 +47,9 @@ class RAGSystem:
     async def ask(self, request_data: AskRequest):
         logger.debug(f'Запуск RAGSystem.ask, request_data: {request_data}')
         result = self.collection.query(
-            query_texts=request_data.query,
-            n_results=2
+            query_texts=request_data.query
         )
-        context = result['documents']
-        return context
+        passages = [{'text': text} for text in result['documents'][0]]
+        rerank_request = RerankRequest(request_data.query, passages)
+        context = self.ranker.rerank(rerank_request)
+        return context[0]['text']

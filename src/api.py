@@ -56,6 +56,10 @@ async def ask(
     request_data: AskRequest, settings: Settings = Depends(get_settings)
 ):
     logger.info(f'Запрос на эндпоинт "/ask", {request_data}')
-    rag_sys = RAGSystem(settings)
-    result = await rag_sys.ask(request_data)
-    return result
+    try:
+        rag_sys = RAGSystem(settings)
+        response = await rag_sys.ask(request_data)
+        return {'status': 'success', 'response': response}
+    except Exception as e:
+        logger.error(f'Ошибка при при подготовке ответа: {e}')
+        return {'status': 'fail', 'error': e}
