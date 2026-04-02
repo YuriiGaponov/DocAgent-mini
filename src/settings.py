@@ -33,6 +33,15 @@ class Settings(BaseSettings):
     LOG_FILENAME: str = 'app_log.log'
     """str: Имя файла логов. По умолчанию — 'app_log.log'."""
 
+    # Настройки RAG-системы
+    DOC_PATH: str = f'{BASE_DIR}/docs'
+    ALLOWED_FILENAME_PATTERN: str = r"^[a-z0-9_-]+\.md$"
+    EMBEDDING_MODEL: str = 'all-MiniLM-L6-v2'
+    VECTOR_DB_NAME: str = 'docs'
+
+    # Настройки LLM
+    LLM_MODEL: str = 'mistral'
+
     model_config = SettingsConfigDict(
         env_file=(BASE_DIR / '.env'),
         env_file_encoding='utf-8',

@@ -7,7 +7,13 @@
 сервиса (/health).
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from src.logger import logger
+from src.models import AskRequest
+from src.settings import Settings, get_settings
+from src.rag.rag_system import RAGSystem
+
 
 router = APIRouter()
 """Экземпляр APIRouter — маршрутизатор
@@ -36,7 +42,31 @@ async def health():
         внутренних ошибок, чтобы чётко различать
         доступность сервиса и его внутреннее состояние.
     """
+    logger.info('Запрос на эндпоинт "/health"')
     try:
+        logger.success('Статус приложения: "healthy"')
         return {"status": "healthy"}
     except Exception as e:
+        logger.error(f'Ошибка при проверке здоровья приложения: {e}')
         return {"status": "unhealthy", "error": str(e)}
+
+
+@router.post("/ask")
+async def ask(
+    request_data: AskRequest, settings: Settings = Depends(get_settings)
+):
+    """
+    Обрабатывает пользовательский запрос через RAG‑систему.
+
+    Принимает вопрос от пользователя, передаёт его в RAGSystem для обработки
+    и возвращает сгенерированный ответ.
+    """
+    logger.info(f'Запрос на эндпоинт "/ask", {request_data}')
+    try:
+        rag_sys = RAGSystem(settings)
+        response = await rag_sys.ask(request_data)
+        logger.info('Ответ получен.')
+        return {'status': 'success', 'response': response}
+    except Exception as e:
+        logger.error(f'Ошибка при при подготовке ответа: {e}')
+        return {'status': 'fail', 'error': e}
