@@ -1,4 +1,4 @@
-# DocAgent-mini: AI-агент для работы с документацией
+# DocAgent-mini: AI‑агент для работы с документацией
 
 **DocAgent-mini** — это учебный мини‑проект AI‑агента, который отвечает на вопросы пользователей по внутренней документации компании через HTTP‑API. Проект объединяет ключевые концепции современной разработки AI‑решений: RAG (Retrieval‑Augmented Generation), управление состоянием (stateful agents), безопасность и структурированное логирование.
 
@@ -13,9 +13,21 @@
 
 Проект предназначен для закрепления навыков работы с LLM, RAG и stateful‑агентами. Его можно использовать как стартовую точку для создания корпоративного AI‑помощника.
 
+## Технологический стек
+
+* **Python 3.10+** — основной язык разработки;
+* **FastAPI** — фреймворк для создания HTTP‑API;
+* **Uvicorn** — ASGI‑сервер для запуска приложения;
+* **Sentence Transformers** — генерация эмбеддингов текста;
+* **Pydantic** — валидация данных и работа с моделями;
+* **Loguru** — структурированное логирование;
+* **pytest** — тестирование;
+* **Flashrank** — ранжирование результатов поиска;
+* **ollama** — запуск локальных LLM.
+
 ## Функциональные возможности
 
-Агент будет обрабатывать три типа запросов:
+Агент обрабатывает три типа запросов:
 
 1. **Информационные запросы (RAG)**
    * Пользователь: *«Что такое RAG?»*
@@ -30,43 +42,223 @@
    * Агент: использует сохранённый `task_id` и вызывает `add_comment`.
 
 ## Архитектура проекта
-```
-DocAgent-mini
-├─ db
-│  └─ __init__.py
-├─ main.py
-├─ README.md
-├─ requirements.txt
-├─ src
-│  ├─ api.py
-│  ├─ logger.py
-│  ├─ models.py
-│  ├─ rag
-│  │  ├─ collection_initiator.py
-│  │  ├─ embedding_manager.py
-│  │  ├─ loader.py
-│  │  ├─ rag_system.py
-│  │  ├─ reader.py
-│  │  ├─ utils.py
-│  │  ├─ vectorDB_manager.py
-│  │  └─ __init__.py
-│  ├─ settings.py
-│  └─ __init__.py
-├─ tests
-│  ├─ api
-│  │  ├─ test_ask.py
-│  │  └─ test_health.py
-│  ├─ conftest.py
-│  ├─ RAG
-│  │  ├─ test_embedding_manager.py
-│  │  ├─ test_loader.py
-│  │  ├─ test_rag_system.py
-│  │  ├─ test_reader.py
-│  │  └─ test_vectorDB_manager.py
-│  └─ __init__.py
-└─ __init__.py
+
 
 ```
+
+DocAgent-mini  
+├─ db  
+│ └─ **init**.py  
+├─ main.py  
+├─ README.md  
+├─ requirements.txt  
+├─ src  
+│ ├─ api.py  
+│ ├─ logger.py  
+│ ├─ models.py  
+│ ├─ rag  
+│ │ ├─ collection_initiator.py  
+│ │ ├─ embedding_manager.py  
+│ │ ├─ loader.py  
+│ │ ├─ rag_system.py  
+│ │ ├─ reader.py  
+│ │ ├─ utils.py  
+│ │ ├─ vectorDB_manager.py  
+│ │ └─ **init**.py  
+│ ├─ settings.py  
+│ └─ **init**.py  
+├─ tests  
+│ ├─ api  
+│ │ ├─ test_ask.py  
+│ │ └─ test_health.py  
+│ ├─ conftest.py  
+│ ├─ RAG  
+│ │ ├─ test_embedding_manager.py  
+│ │ ├─ test_loader.py  
+│ │ ├─ test_rag_system.py  
+│ │ ├─ test_reader.py  
+│ │ └─ test_vectorDB_manager.py  
+│ └─ **init**.py  
+└─ **init**.py
+
+```
+
+## Установка
+
+1. Клонируйте репозиторий:
+   ```bash
+   git clone <https://github.com/YuriiGaponov/DocAgent-mini.git>
+   cd DocAgent-mini
+```
+2.  Создайте виртуальное окружение:
+        ```
+    python -m venv venv
+    
+    ```
+3.  Активируйте виртуальное окружение:
+    
+    -   **Windows:**
+        
+        ```
+        venv\Scripts\activate
+        
+        ```
+        
+    -   **macOS/Linux:**
+        
+        ```
+        source venv/bin/activate
+        
+        ```
+4.  Установите зависимости:
+    
+    ```
+    pip install -r requirements.txt
+    
+    ```
+5.  Запустите Ollama (если используете локальную LLM):
+    
+    ```
+    ollama serve
+    
+    ```
+    
+6.  Подготовьте документацию: поместите Markdown‑файлы в папку `docs/`.
+```
+    
+
+## Запуск
+
+Запустите сервер с помощью Uvicorn:
+
+uvicorn main:app --reload
+
+Сервер будет доступен по адресу: `http://localhost:8000`
+
+
+## Использование
+
+### Доступные эндпоинты
+
+-   `GET /health` — проверка работоспособности сервиса.
+    
+-   `POST /ask` — отправка вопроса пользователю.
+    
+
+### Пример запроса к `/ask`
+
+**HTTP‑запрос:**
+
+```
+POST /ask HTTP/1.1
+Host: localhost:8000
+Content-Type: application/json
+
+{
+  "user_id": "user123",
+  "message": "Что такое RAG?"
+}
+
+```
+
+**Ответ:**
+
+```
+{
+  "response": "RAG (Retrieval-Augmented Generation) — это подход, при котором модель сначала ищет релевантную информацию...",
+  "task_id": null
+}
+
+```
+
+### Пример с созданием задачи
+
+**Запрос:**
+
+```
+POST /ask HTTP/1.1
+Host: localhost:8000
+Content-Type: application/json
+
+{
+  "user_id": "user123",
+  "message": "Создай задачу: добавить пример агента"
+}
+
+```
+
+**Ответ:**
+
+```
+{
+  "response": "Задача создана успешно.",
+  "task_id": "task_456"
+}
+
+```
+
+## Тестирование
+
+Для запуска тестов используйте pytest:
+
+```
+pytest
+```
+
+Или с подробным выводом:
+
+```
+pytest -v
+```
+
+Тесты покрывают:
+
+-   работоспособность API;
+    
+-   корректность работы RAG‑системы;
+    
+-   управление состоянием пользователя;
+    
+-   обработку ошибок;
+    
+-   валидацию входных данных (Pydantic);
+    
+-   логирование (Loguru).
+    
+
+## Настройка
+
+Основные настройки проекта находятся в `src/settings.py`. Вы можете изменить:
+
+-   путь к папке с документацией (`DOCS_PATH`);
+    
+-   параметры векторной базы данных;
+    
+-   настройки LLM (модель, API‑ключ и т. д.);
+    
+-   параметры логирования (Loguru);
+    
+-   настройки ранжирования (Flashrank).
+    
+
+## Зависимости
+
+Полный список зависимостей в `requirements.txt`:
+
+```
+python>=3.10
+fastapi
+uvicorn
+sentence-transformers
+pydantic
+loguru
+pytest
+flashrank
+ollama
+
+```
+
+  
 
 Запуск
 uvicorn main:app --reload
