@@ -3,3 +3,4 @@ docs/
 .env
 logs/
 .pytest_cache/
+.vscode/
