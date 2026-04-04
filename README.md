@@ -43,44 +43,42 @@
 
 ## Архитектура проекта
 
-
 ```
-
-DocAgent-mini  
-├─ db  
-│ └─ **init**.py  
-├─ main.py  
-├─ README.md  
-├─ requirements.txt  
-├─ src  
-│ ├─ api.py  
-│ ├─ logger.py  
-│ ├─ models.py  
-│ ├─ rag  
-│ │ ├─ collection_initiator.py  
-│ │ ├─ embedding_manager.py  
-│ │ ├─ loader.py  
-│ │ ├─ rag_system.py  
-│ │ ├─ reader.py  
-│ │ ├─ utils.py  
-│ │ ├─ vectorDB_manager.py  
-│ │ └─ **init**.py  
-│ ├─ settings.py  
-│ └─ **init**.py  
-├─ tests  
-│ ├─ api  
-│ │ ├─ test_ask.py  
-│ │ └─ test_health.py  
-│ ├─ conftest.py  
-│ ├─ RAG  
-│ │ ├─ test_embedding_manager.py  
-│ │ ├─ test_loader.py  
-│ │ ├─ test_rag_system.py  
-│ │ ├─ test_reader.py  
-│ │ └─ test_vectorDB_manager.py  
-│ └─ **init**.py  
-└─ **init**.py
-
+DocAgent-mini
+├─ main.py
+├─ README.md
+├─ requirements.txt
+├─ src
+│  ├─ agent
+│  │  ├─ agent.py
+│  │  └─ __init__.py
+│  ├─ api.py
+│  ├─ logger.py
+│  ├─ models.py
+│  ├─ rag
+│  │  ├─ collection_initiator.py
+│  │  ├─ embedding_manager.py
+│  │  ├─ loader.py
+│  │  ├─ rag_system.py
+│  │  ├─ reader.py
+│  │  ├─ utils.py
+│  │  ├─ vectorDB_manager.py
+│  │  └─ __init__.py
+│  ├─ settings.py
+│  └─ __init__.py
+├─ tests
+│  ├─ api
+│  │  ├─ test_ask.py
+│  │  └─ test_health.py
+│  ├─ conftest.py
+│  ├─ RAG
+│  │  ├─ test_embedding_manager.py
+│  │  ├─ test_loader.py
+│  │  ├─ test_rag_system.py
+│  │  ├─ test_reader.py
+│  │  └─ test_vectorDB_manager.py
+│  └─ __init__.py
+└─ __init__.py
 ```
 
 ## Установка

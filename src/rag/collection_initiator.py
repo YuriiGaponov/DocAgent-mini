@@ -46,7 +46,7 @@ class CollectionInitiator:
         self.embedder = EmbeddingService(settings)
         self.client = VectorDBManager(settings)
         self.collection = self.client.collection
-        logger.debug(f'Инициализирована RAG-система: {self.__class__}')
+        logger.debug(f'Запущен инициализатор коллекции: {self.__class__}')
 
     async def get_docs(self) -> List[Path]:
         """

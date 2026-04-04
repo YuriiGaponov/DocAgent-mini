@@ -55,7 +55,7 @@ class RAGSystem:
         * реранкинг результатов;
         * генерацию ответа с помощью LLM на основе контекста.
         """
-        logger.debug(f'Запуск RAGSystem.ask, request_data: {request_data}')
+        logger.debug('Запуск RAGSystem.ask')
 
         # === Поиск в векторной БД ===
         question = request_data.query
