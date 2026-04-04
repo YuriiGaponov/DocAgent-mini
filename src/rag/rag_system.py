@@ -56,15 +56,21 @@ class RAGSystem:
         * генерацию ответа с помощью LLM на основе контекста.
         """
         logger.debug(f'Запуск RAGSystem.ask, request_data: {request_data}')
+
+        # === Поиск в векторной БД ===
         question = request_data.query
         result = self.collection.query(
             query_texts=question
         )
         logger.debug('Получен контент из векторной БД.')
+
+        # === Реранкинг ===
         passages = [{'text': text} for text in result['documents'][0]]
         rerank_request = RerankRequest(question, passages)
         context = self.ranker.rerank(rerank_request)[0]['text']
         logger.debug('Выполнен реранкинг.')
+
+        # === Запрос LLM ===
         prompt = (
             f'Отвечай только на основе следующего контекста.'
             f'Если в контексте нет нужных данных для ответа'
@@ -73,10 +79,12 @@ class RAGSystem:
             f'Контекст: {context}'
             f'Вопрос: {question}'
         )
-        response = ollama.chat(
+        llm_response = ollama.chat(
             model=self.llm_model,
             messages=[{"role": "user", "content": prompt}],
             options={"temperature": 0.1}
         )
+        response = llm_response['message']['content']
         logger.debug('Получен ответ LLM.')
-        return response['message']['content']
+
+        return response
