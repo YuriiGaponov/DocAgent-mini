@@ -14,24 +14,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 """Корневой путь проекта — директория, расположенная на уровень выше src."""
 
 
-class QueryType:
-    """
-    Перечисление типов запросов для агента DocAgent‑mini.
-
-    Определяет допустимые типы пользовательских запросов,
-    обрабатываемых системой.
-
-    Атрибуты:
-        RAG_QUERY (str): запрос к RAG‑системе для получения ответа
-            на основе документации.
-        CREATE_TASK (str): запрос на создание новой задачи.
-        ADD_COMMENT (str): запрос на добавление комментария к задаче.
-    """
-    RAG_QUERY = "rag_query"
-    CREATE_TASK = "create_task"
-    ADD_COMMENT = "add_comment"
-
-
 class Settings(BaseSettings):
     """
     Класс настроек приложения, наследующий BaseSettings из Pydantic.
@@ -60,9 +42,7 @@ class Settings(BaseSettings):
 
     # Настройки LLM
     LLM_MODEL: str = 'mistral'
-
-    # Настройки Agent
-    AGENT_QUERY_TYPE: QueryType = QueryType()
+    LLM_TEMPERATURE: float = 0.1
 
     model_config = SettingsConfigDict(
         env_file=(BASE_DIR / '.env'),

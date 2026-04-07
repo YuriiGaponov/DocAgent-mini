@@ -7,10 +7,23 @@
 """
 
 
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.tools import tool
+from langgraph.graph import StateGraph, START, END
+from langchain_ollama import ChatOllama
+
 from src.logger import logger
-from src.models import AskRequest
+from src.models import AskRequest, State
 from src.settings import Settings
 from src.rag.rag_system import RAGSystem
+
+
+SYSTEM_PROMPT = (
+    'Ты  - агент поиска информации во внутренней документации.\n'
+    'Принимаешь запрос пользователя\n,'
+    'вызываешь инструмент поиска контекста в коллекции векторной БД.\n'
+    'на основе полученного контекста генерируешь ответ'
+)
 
 
 class DocAgent:
@@ -29,6 +42,8 @@ class DocAgent:
         """
         self.settings = settings
         self._rag_sys = None
+        self._llm = None
+        self._graph = None
         logger.debug('Агент инициализирован')
 
     @property
@@ -43,35 +58,56 @@ class DocAgent:
             self._rag_sys = RAGSystem(self.settings)
         return self._rag_sys
 
-    def _query_classify(self, query: str) -> str:
-        """
-        Классифицирует тип пользовательского запроса.
+    @property
+    def llm(self):
+        if self._llm is None:
+            self._llm = ChatOllama(
+                model=self.settings.LLM_MODEL,
+                temperature=self.settings.LLM_TEMPERATURE
+            )
+        return self._llm
 
-        В текущей реализации всегда возвращает тип RAG_QUERY.
-        В будущем может быть расширен для поддержки других типов запросов
-        (создание задач, добавление комментариев и т. д.).
-        """
-        query_type = self.settings.AGENT_QUERY_TYPE.RAG_QUERY
-        logger.info(f'Тип запроса: {query_type}')
-        return query_type
+    @property
+    def graph(self) -> StateGraph:
+        if self._graph is None:
+            workflow = StateGraph(State)
+            workflow.add_node('search', self.search)
+            workflow.add_node('response', self.response)
+            workflow.add_edge(START, 'search')
+            workflow.add_edge('search', 'response')
+            workflow.add_edge('response', END)
+            self._graph = workflow.compile()
+        return self._graph
+
+    @tool
+    async def search(self, state: State):
+        """Ищет контекст в векторной базе данных."""
+        logger.debug('Запуск инструмента DocAgent.search')
+        request = state.messages[-1]
+        logger.trace(f'Сформирован запрос: {request}')
+        logger.trace(f'запрос передается в RAGSystem {self.rag_system}')
+        response = self.rag_system.search(request)
+        logger.trace(f'получен контекст {response}')
+        return response
+
+    @tool
+    async def response(self, state: State):
+        """Возвращает последнее сообщение в state"""
+        return state.messages[-1]
 
     async def process_query(self, request_data: AskRequest):
-        """
-        Обрабатывает входящий пользовательский запрос.
 
-        Выполняет:
-        1. Классификацию типа запроса через _query_classify.
-        2. Маршрутизацию к соответствующему обработчику (в текущей
-           реализации — только RAG‑запросы).
-        3. Получение ответа от RAG‑системы.
-        """
         logger.debug('Запуск DocAgent.process_query')
-        query_type = self._query_classify(request_data.query)
 
-        # === Ответ на запрос ===
-        if query_type == self.settings.AGENT_QUERY_TYPE.RAG_QUERY:
-            response = await self.rag_system.ask(request_data)
-        # === Создание задачи ===
-        # === Добавление комментария ===
+        logger.trace(f'входящие данные: {request_data}')
+        initial_state = State(
+            user_id=request_data.user_id,
+            messages=[
+                SystemMessage(content=SYSTEM_PROMPT),
+                HumanMessage(content=request_data.query)
+            ]
+        )
+        logger.trace(f'сформирован initial_state: {initial_state}')
+        response = self.llm.invoke(initial_state.messages)
 
         return response
