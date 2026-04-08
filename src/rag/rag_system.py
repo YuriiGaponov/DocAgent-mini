@@ -46,7 +46,7 @@ class RAGSystem:
         logger.debug('Запуск RAGSystem.initiate_collection.')
         return await self.initiator.create_docs_collection()
 
-    async def search(self, request_data: AskRequest) -> str:
+    async def search(self, request: str) -> str:
         """
         Обрабатывает пользовательский запрос через пайплайн RAG.
 
@@ -58,7 +58,7 @@ class RAGSystem:
         logger.debug('Запуск RAGSystem.search')
 
         # === Поиск в векторной БД ===
-        question = request_data.query
+        question = request
         result = self.collection.query(
             query_texts=question
         )
