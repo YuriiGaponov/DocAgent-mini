@@ -7,10 +7,25 @@
 """
 
 
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.tools import tool
+from langgraph.graph import StateGraph, START, END
+from langgraph.graph.state import CompiledStateGraph
+from langgraph.prebuilt import ToolNode
+from langchain_ollama import ChatOllama
+
 from src.logger import logger
-from src.models import AskRequest
+from src.models import AskRequest, State
 from src.settings import Settings
 from src.rag.rag_system import RAGSystem
+
+
+SYSTEM_PROMPT = (
+    'Ты - агент поиска информации во внутренней документации.\n'
+    'Принимаешь запрос пользователя\n,'
+    'вызываешь инструмент поиска контекста в коллекции векторной БД.\n'
+    'вызываешь инструмент генерации ответа на основе полученного контекста'
+)
 
 
 class DocAgent:
@@ -29,6 +44,8 @@ class DocAgent:
         """
         self.settings = settings
         self._rag_sys = None
+        self._llm = None
+        self._graph = None
         logger.debug('Агент инициализирован')
 
     @property
@@ -43,35 +60,68 @@ class DocAgent:
             self._rag_sys = RAGSystem(self.settings)
         return self._rag_sys
 
-    def _query_classify(self, query: str) -> str:
-        """
-        Классифицирует тип пользовательского запроса.
+    @property
+    def tools(self) -> list:
+        return [self.search]
 
-        В текущей реализации всегда возвращает тип RAG_QUERY.
-        В будущем может быть расширен для поддержки других типов запросов
-        (создание задач, добавление комментариев и т. д.).
+    @property
+    def llm(self):
+        if self._llm is None:
+            self._llm = ChatOllama(
+                model=self.settings.LLM_MODEL,
+                temperature=self.settings.LLM_TEMPERATURE
+            ).bind_tools(self.tools)
+        return self._llm
+
+    @property
+    def tool_node(self) -> ToolNode:
+        return ToolNode(self.tools)
+
+    @property
+    def graph(self) -> CompiledStateGraph:
+        if self._graph is None:
+            workflow = StateGraph(State)
+            workflow.add_node("tools", self.tool_node)
+            workflow.add_edge(START, 'tools')
+            workflow.add_edge('tools', END)
+            self._graph = workflow.compile()
+        return self._graph
+
+    @tool
+    async def search(self, request: str) -> str:
         """
-        query_type = self.settings.AGENT_QUERY_TYPE.RAG_QUERY
-        logger.info(f'Тип запроса: {query_type}')
-        return query_type
+        Инструмент поиска контекста в векторной базе данных.
+
+        Вызывает RAGSystem для поиска релевантной информации по запросу.
+
+        Args:
+            request (str): текстовый запрос пользователя для поиска.
+
+        Returns:
+            str: найденный контекст из векторной БД.
+
+        Raises:
+            Exception: при ошибках взаимодействия с RAGSystem или векторной БД.
+        """
+        logger.debug('Запуск DocAgent.search')
+        context = await self.rag_system.search(request)
+        return context
 
     async def process_query(self, request_data: AskRequest):
-        """
-        Обрабатывает входящий пользовательский запрос.
 
-        Выполняет:
-        1. Классификацию типа запроса через _query_classify.
-        2. Маршрутизацию к соответствующему обработчику (в текущей
-           реализации — только RAG‑запросы).
-        3. Получение ответа от RAG‑системы.
-        """
         logger.debug('Запуск DocAgent.process_query')
-        query_type = self._query_classify(request_data.query)
 
-        # === Ответ на запрос ===
-        if query_type == self.settings.AGENT_QUERY_TYPE.RAG_QUERY:
-            response = await self.rag_system.ask(request_data)
-        # === Создание задачи ===
-        # === Добавление комментария ===
+        logger.trace(f'входящие данные: {request_data}')
+        state = State(
+            user_id=request_data.user_id,
+            messages=[
+                SystemMessage(content=SYSTEM_PROMPT),
+                HumanMessage(content=request_data.query)
+            ]
+        )
+        logger.trace(f'сформирован state: {state}')
 
+        final_state = await self.llm.ainvoke(state.messages)
+        logger.trace(f'сформирован final_state: {final_state}')
+        response = final_state
         return response

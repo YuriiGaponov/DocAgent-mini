@@ -46,7 +46,7 @@ class RAGSystem:
         logger.debug('Запуск RAGSystem.initiate_collection.')
         return await self.initiator.create_docs_collection()
 
-    async def ask(self, request_data: AskRequest) -> str:
+    async def search(self, request: str) -> str:
         """
         Обрабатывает пользовательский запрос через пайплайн RAG.
 
@@ -55,10 +55,10 @@ class RAGSystem:
         * реранкинг результатов;
         * генерацию ответа с помощью LLM на основе контекста.
         """
-        logger.debug('Запуск RAGSystem.ask')
+        logger.debug('Запуск RAGSystem.search')
 
         # === Поиск в векторной БД ===
-        question = request_data.query
+        question = request
         result = self.collection.query(
             query_texts=question
         )
@@ -70,21 +70,21 @@ class RAGSystem:
         context = self.ranker.rerank(rerank_request)[0]['text']
         logger.debug('Выполнен реранкинг.')
 
-        # === Запрос LLM ===
-        prompt = (
-            f'Отвечай только на основе следующего контекста.'
-            f'Если в контексте нет нужных данных для ответа'
-            f'ответь дословно: "Предоставлен нерелевантный контекст"'
-            f'НЕ ВКЛЮЧАЙ в ответ данные, полученные не из контекста'
-            f'Контекст: {context}'
-            f'Вопрос: {question}'
-        )
-        llm_response = ollama.chat(
-            model=self.llm_model,
-            messages=[{"role": "user", "content": prompt}],
-            options={"temperature": 0.1}
-        )
-        response = llm_response['message']['content']
-        logger.debug('Получен ответ LLM.')
+        # # === Запрос LLM ===
+        # prompt = (
+        #     f'Отвечай только на основе следующего контекста.'
+        #     f'Если в контексте нет нужных данных для ответа'
+        #     f'ответь дословно: "Предоставлен нерелевантный контекст"'
+        #     f'НЕ ВКЛЮЧАЙ в ответ данные, полученные не из контекста'
+        #     f'Контекст: {context}'
+        #     f'Вопрос: {question}'
+        # )
+        # llm_response = ollama.chat(
+        #     model=self.llm_model,
+        #     messages=[{"role": "user", "content": prompt}],
+        #     options={"temperature": 0.1}
+        # )
+        # response = llm_response['message']['content']
+        # logger.debug('Получен ответ LLM.')
 
-        return response
+        return context
