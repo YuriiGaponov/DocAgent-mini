@@ -92,5 +92,5 @@ class State(BaseModel):
       с поддержкой механизма добавления сообщений через add_messages.
     """
     user_id: int
-    task_id: str | None = None
+    task_id: int | None = None
     messages: Annotated[List[AnyMessage], add_messages] = []
