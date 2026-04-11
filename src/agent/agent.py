@@ -2,12 +2,14 @@
 
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.state import CompiledStateGraph
 
 from src.logger import logger
 from src.models import AskRequest, State
+from src.rag.rag_system import RAGSystem
 from src.settings import Settings
 
 
@@ -16,6 +18,7 @@ class DocAgent:
         self.settings = settings
         self._llm = None
         self._graph = None
+        self._rag_sys = None
         logger.debug('Агент инициализирован')
 
     @property
@@ -38,6 +41,39 @@ class DocAgent:
             self._graph = workflow.compile()
             logger.trace('граф скомпилирован')
         return self._graph
+
+    @property
+    def rag_system(self):
+        """
+        Лениво инициализирует и возвращает экземпляр RAGSystem.
+
+        Создаёт RAGSystem только при первом обращении, используя настройки
+        агента. Обеспечивает однократное создание экземпляра.
+        """
+        if self._rag_sys is None:
+            self._rag_sys = RAGSystem(self.settings)
+        return self._rag_sys
+
+    @tool
+    async def search(self, request: str) -> str:
+        """
+        Инструмент поиска контекста в векторной базе данных.
+
+        Вызывает RAGSystem для поиска релевантной информации по запросу.
+
+        Args:
+            request (str): текстовый запрос пользователя для поиска.
+
+        Returns:
+            str: найденный контекст из векторной БД.
+
+        Raises:
+            Exception: при ошибках взаимодействия с RAGSystem или векторной БД.
+        """
+        logger.debug('Запуск DocAgent.search')
+        context = await self.rag_system.search(request)
+        logger.debug(f'Получен контекст: {context}')
+        return context
 
     async def call_model(self, state: State):
         logger.debug('Запуск DocAgent.call_model')
