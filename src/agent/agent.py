@@ -6,6 +6,7 @@ from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.state import CompiledStateGraph
+from langgraph.prebuilt import ToolNode
 
 from src.logger import logger
 from src.models import AskRequest, State
@@ -27,7 +28,7 @@ class DocAgent:
             self._llm = ChatOllama(
                 model=self.settings.LLM_MODEL,
                 temperature=self.settings.LLM_TEMPERATURE
-            )
+            ).bind_tools(self.tools)
         logger.trace(f'используется LLM: {self._llm}')
         return self._llm
 
@@ -36,6 +37,7 @@ class DocAgent:
         if self._graph is None:
             workflow = StateGraph(State)
             workflow.add_node('model', self.call_model)
+            workflow.add_node('tools', self.tool_node)
             workflow.add_edge(START, 'model')
             workflow.add_edge('model', END)
             self._graph = workflow.compile()
@@ -53,6 +55,14 @@ class DocAgent:
         if self._rag_sys is None:
             self._rag_sys = RAGSystem(self.settings)
         return self._rag_sys
+
+    @property
+    def tools(self) -> list:
+        return [self.search]
+
+    @property
+    def tool_node(self) -> ToolNode:
+        return ToolNode(self.tools)
 
     @tool
     async def search(self, request: str) -> str:
