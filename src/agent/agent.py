@@ -1,7 +1,13 @@
+"""src.agent.agent.py"""
+
+
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
+from langgraph.graph import StateGraph, START, END
+from langgraph.graph.state import CompiledStateGraph
 
 from src.logger import logger
-from src.models import AskRequest
+from src.models import AskRequest, State
 from src.settings import Settings
 
 
@@ -9,6 +15,7 @@ class DocAgent:
     def __init__(self, settings: Settings):
         self.settings = settings
         self._llm = None
+        self._graph = None
         logger.debug('Агент инициализирован')
 
     @property
@@ -21,9 +28,45 @@ class DocAgent:
         logger.trace(f'используется LLM: {self._llm}')
         return self._llm
 
+    @property
+    def graph(self) -> CompiledStateGraph:
+        if self._graph is None:
+            workflow = StateGraph(State)
+            workflow.add_node('model', self.call_model)
+            workflow.add_edge(START, 'model')
+            workflow.add_edge('model', END)
+            self._graph = workflow.compile()
+            logger.trace('граф скомпилирован')
+        return self._graph
+
+    async def call_model(self, state: State):
+        logger.debug('Запуск DocAgent.call_model')
+        SYSTEM_PROMPT = (
+            'Ты - AI-агент, отвечающий на запросы пользователя'
+        )
+        system = SystemMessage(content=SYSTEM_PROMPT)
+        updated_state = state.model_copy()
+        updated_state.messages = [system] + state.messages
+        logger.trace(f'updated_state до запуска LLM: {updated_state}')
+        messages = updated_state.messages
+        llm_response = await self.llm.ainvoke(messages)
+        logger.trace(f'ответ LLM: {llm_response}')
+        updated_state.messages.append(llm_response)
+        logger.trace(f'updated_state: {updated_state}')
+        return updated_state
+
     async def process_query(self, request_data: AskRequest):
         logger.debug('Запуск DocAgent.process_query')
         logger.trace(f'входящие данные: {request_data}')
-        request = request_data.query
-        response = await self.llm.ainvoke(request)
+        initial_state = State(
+            user_id=request_data.user_id,
+            messages=[
+                HumanMessage(content=request_data.query)
+            ]
+        )
+        logger.trace(f'initial_state: {initial_state}')
+        logger.trace('запуск графа')
+        final_state = await self.graph.ainvoke(initial_state)
+        logger.trace(f'final_state: {final_state}')
+        response = final_state
         return response
