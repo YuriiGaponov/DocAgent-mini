@@ -14,6 +14,31 @@ from src.rag.rag_system import RAGSystem
 from src.settings import Settings
 
 
+def create_search_tool(settings: Settings):
+    @tool
+    async def search(request: str) -> str:
+        """
+        Инструмент поиска контекста в векторной базе данных.
+
+        Вызывает RAGSystem для поиска релевантной информации по запросу.
+
+        Args:
+            request (str): текстовый запрос пользователя для поиска.
+
+        Returns:
+            str: найденный контекст из векторной БД.
+
+        Raises:
+            Exception: при ошибках взаимодействия с RAGSystem или векторной БД.
+        """
+        logger.debug('Запуск search')
+        rag_system = RAGSystem(settings)
+        context = await rag_system.search(request)
+        logger.debug(f'Получен контекст: {context}')
+        return context
+    return search
+
+
 class DocAgent:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -39,7 +64,8 @@ class DocAgent:
             workflow.add_node('model', self.call_model)
             workflow.add_node('tools', self.tool_node)
             workflow.add_edge(START, 'model')
-            workflow.add_edge('model', END)
+            workflow.add_edge('model', 'tools')
+            workflow.add_edge('tools', END)
             self._graph = workflow.compile()
             logger.trace('граф скомпилирован')
         return self._graph
@@ -58,43 +84,32 @@ class DocAgent:
 
     @property
     def tools(self) -> list:
-        return [self.search]
+        return [create_search_tool(self.settings)]
 
     @property
     def tool_node(self) -> ToolNode:
         return ToolNode(self.tools)
 
-    @tool
-    async def search(self, request: str) -> str:
-        """
-        Инструмент поиска контекста в векторной базе данных.
-
-        Вызывает RAGSystem для поиска релевантной информации по запросу.
-
-        Args:
-            request (str): текстовый запрос пользователя для поиска.
-
-        Returns:
-            str: найденный контекст из векторной БД.
-
-        Raises:
-            Exception: при ошибках взаимодействия с RAGSystem или векторной БД.
-        """
-        logger.debug('Запуск DocAgent.search')
-        context = await self.rag_system.search(request)
-        logger.debug(f'Получен контекст: {context}')
-        return context
-
     async def call_model(self, state: State):
         logger.debug('Запуск DocAgent.call_model')
         SYSTEM_PROMPT = (
-            'Ты - AI-агент, отвечающий на запросы пользователя'
+            'Ты - AI-агент, вызывающий инструмент search '
+            'для поиска данных в коллекции векторной базы данных\n'
+            'Аргумент request: исходный запрос пользователя.\n'
+            'НИКОГДА не отвечай напрямую. Всегда вызывай инструмент.\n'
+            'ВАЖНО: '
+            'В аргументах инструмента передавай ТОЛЬКО поле "request".\n'
+            'НИКОГДА не включай поле "self" в аргументы.\n'
+            'Формат вызова:\n'
+            '{"name": "search", '
+            '"arguments": {"request": "<исходный запрос пользователя>"}}\n'
         )
         system = SystemMessage(content=SYSTEM_PROMPT)
         updated_state = state.model_copy()
         updated_state.messages = [system] + state.messages
         logger.trace(f'updated_state до запуска LLM: {updated_state}')
         messages = updated_state.messages
+        logger.trace(f'запуск LLM с messages: {messages}')
         llm_response = await self.llm.ainvoke(messages)
         logger.trace(f'ответ LLM: {llm_response}')
         updated_state.messages.append(llm_response)
