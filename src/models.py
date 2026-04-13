@@ -10,9 +10,8 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, List
+from typing import List
 from langchain_core.messages import AnyMessage
-from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 
 
@@ -93,4 +92,4 @@ class State(BaseModel):
     """
     user_id: int
     task_id: int | None = None
-    messages: Annotated[List[AnyMessage], add_messages] = []
+    messages: List[AnyMessage] = []
