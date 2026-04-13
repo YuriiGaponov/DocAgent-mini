@@ -22,7 +22,8 @@ logger.remove()
 logger.add(
     sink=f'{settings.LOG_DIR}/{settings.LOG_FILENAME}',
     level='TRACE' if settings.DEBUG else 'INFO',
-    rotation='1 MB'
+    rotation='1 MB',
+    retention='7 days'
 )
 """Добавляет обработчик логов, направляющий записи в файл.
 
