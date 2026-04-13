@@ -1,5 +1,11 @@
-"""src.agent.agent.py"""
+"""
+Модуль src.agent.agent.py — реализация агента DocAgent‑mini.
 
+Содержит класс DocAgent для обработки пользовательских запросов через граф
+LangGraph.
+Агент использует LLM (ChatOllama) и инструменты (в т. ч. поиск через RAGSystem)
+для поиска информации во внутренней документации.
+"""
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import tool
@@ -15,6 +21,18 @@ from src.settings import Settings
 
 
 def create_search_tool(settings: Settings):
+    """
+    Создаёт инструмент поиска для интеграции с LangGraph.
+
+    Возвращает асинхронную функцию search, настроенную на работу
+    с RAGSystem для конкретного экземпляра настроек.
+
+    Args:
+        settings (Settings): настройки приложения, используемые
+            для инициализации RAGSystem.
+    Returns:
+        Callable: инструмент search для использования в графе workflow.
+    """
     @tool
     async def search(request: str) -> str:
         """
@@ -40,7 +58,20 @@ def create_search_tool(settings: Settings):
 
 
 class DocAgent:
+    """
+    Основной агент приложения DocAgent‑mini для обработки запросов
+    пользователя.
+
+    Использует LangGraph для оркестрации workflow:
+    - вызывает LLM (ChatOllama) для принятия решений;
+    - маршрутизирует запросы к инструментам (например, search);
+    - обрабатывает диалоги через состояние State.
+    """
+
     def __init__(self, settings: Settings):
+        """
+        Инициализирует агента с заданными настройками приложения.
+        """
         self.settings = settings
         self._llm = None
         self._graph = None
@@ -49,6 +80,13 @@ class DocAgent:
 
     @property
     def llm(self):
+        """
+        Лениво инициализирует и возвращает экземпляр языковой модели
+        ChatOllama.
+
+        Настраивает модель согласно параметрам из настроек приложения и
+        привязывает доступные инструменты (tools).
+        """
         if self._llm is None:
             self._llm = ChatOllama(
                 model=self.settings.LLM_MODEL,
@@ -59,13 +97,39 @@ class DocAgent:
 
     @property
     def graph(self) -> CompiledStateGraph:
+        """
+        Лениво инициализирует и компилирует граф workflow (StateGraph).
+
+        Определяет последовательность выполнения узлов:
+        1. START → model (вызов LLM);
+        2. model → tools (если LLM запросил инструмент);
+        3. tools → model (возвращение к LLM после вызова инструмента);
+        4. Завершение при отсутствии вызовов инструментов.
+
+        Returns:
+            CompiledStateGraph: скомпилированный граф workflow для обработки
+            запросов.
+        """
         if self._graph is None:
             workflow = StateGraph(State)
             workflow.add_node('model', self.call_model)
             workflow.add_node('tools', self.tool_node)
             workflow.add_edge(START, 'model')
-            workflow.add_edge('model', 'tools')
-            workflow.add_edge('tools', END)
+
+            def route_after_agent(state: State) -> str:
+                last_message = state.messages[-1]
+                if (
+                    hasattr(last_message, "tool_calls")
+                    and last_message.tool_calls
+                ):
+                    return "tools"
+                else:
+                    return END
+            workflow.add_conditional_edges(
+                'model',
+                route_after_agent
+            )
+            workflow.add_edge('tools', 'model')
             self._graph = workflow.compile()
             logger.trace('граф скомпилирован')
         return self._graph
@@ -84,13 +148,36 @@ class DocAgent:
 
     @property
     def tools(self) -> list:
+        """
+        Возвращает список инструментов, доступных агенту.
+
+        В текущей реализации включает инструмент поиска, созданный
+        через create_search_tool с настройками агента.
+        """
         return [create_search_tool(self.settings)]
 
     @property
     def tool_node(self) -> ToolNode:
+        """
+        Создаёт узел инструментов (ToolNode) для графа workflow.
+
+        Использует список доступных инструментов агента.
+        """
         return ToolNode(self.tools)
 
     async def call_model(self, state: State):
+        """
+        Обрабатывает текущее состояние диалога через LLM.
+
+        Добавляет системный промпт и вызывает LLM для генерации ответа
+        или вызова инструмента.
+
+        Args:
+            state (State): текущее состояние диалога.
+
+        Returns:
+            State: обновлённое состояние с ответом LLM.
+        """
         logger.debug('Запуск DocAgent.call_model')
         SYSTEM_PROMPT = (
             'Ты - AI-агент, вызывающий инструмент search '
@@ -117,6 +204,26 @@ class DocAgent:
         return updated_state
 
     async def process_query(self, request_data: AskRequest):
+        """
+        Обрабатывает входящий пользовательский запрос через граф workflow.
+
+        Выполняет:
+        1. Создание начального состояния (initial_state) с сообщением
+            пользователя.
+        2. Запуск графа workflow (graph.ainvoke) для обработки запроса.
+        3. Возврат финального состояния (final_state).
+
+        Args:
+            request_data (AskRequest): объект с данными запроса,
+                включая идентификатор пользователя и текст вопроса.
+
+        Returns:
+            State: финальное состояние диалога после обработки запроса.
+
+        Raises:
+            Exception: при ошибках обработки запроса (например,
+                проблемах взаимодействия с LLM или графом workflow).
+        """
         logger.debug('Запуск DocAgent.process_query')
         logger.trace(f'входящие данные: {request_data}')
         initial_state = State(
