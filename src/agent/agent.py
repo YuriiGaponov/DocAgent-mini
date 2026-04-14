@@ -57,6 +57,47 @@ def create_search_tool(settings: Settings):
     return search
 
 
+@tool
+async def create_task_id(task_id: int | None = None) -> int:
+    """
+    Создаёт новый идентификатор задачи, увеличивая переданный ID на 1.
+
+    Если task_id не указан (None), начинает нумерацию с 1.
+    Если передан task_id, возвращает task_id + 1.
+
+    Args:
+        task_id (int | None): текущий идентификатор задачи.
+        По умолчанию — None.
+
+    Returns:
+        str: строковое представление нового идентификатора задачи.
+    """
+    logger.debug('Запуск create_task_id')
+    if task_id is not None:
+        task_id = 0
+    task_id += 1
+    logger.debug(f'Создан task_id: {task_id}')
+    return task_id
+
+
+@tool
+async def add_comment(task_id: int, comment: str) -> str:
+    """
+    Добавляет комментарий к задаче с указанным идентификатором.
+
+    Args:
+        task_id (int): идентификатор задачи, к которой добавляется комментарий.
+        comment (str): текст комментария.
+
+    Returns:
+        str: подтверждение добавления комментария с указанием ID задачи.
+    """
+    logger.debug('Запуск add_comment')
+    result = f'Комментарий "{comment}" добавлен к задаче {task_id}'
+    logger.debug(f'Создан комментарий: {result}')
+    return result
+
+
 class DocAgent:
     """
     Основной агент приложения DocAgent‑mini для обработки запросов
@@ -114,6 +155,7 @@ class DocAgent:
             workflow = StateGraph(State)
             workflow.add_node('model', self.call_model)
             workflow.add_node('tools', self.tool_node)
+            workflow.add_node("update", self.update_task_id)
             workflow.add_edge(START, 'model')
 
             def route_after_agent(state: State) -> str:
@@ -154,7 +196,7 @@ class DocAgent:
         В текущей реализации включает инструмент поиска, созданный
         через create_search_tool с настройками агента.
         """
-        return [create_search_tool(self.settings)]
+        return [create_search_tool(self.settings), create_task_id]
 
     @property
     def tool_node(self) -> ToolNode:
@@ -164,6 +206,11 @@ class DocAgent:
         Использует список доступных инструментов агента.
         """
         return ToolNode(self.tools)
+
+    def update_task_id(self, state: State) -> State:
+        last_message = state.messages[-1].content
+        state.task_id = last_message
+        return state
 
     async def call_model(self, state: State):
         """
@@ -180,20 +227,22 @@ class DocAgent:
         """
         logger.debug('Запуск DocAgent.call_model')
         SYSTEM_PROMPT = (
-            'Ты - AI-агент, вызывающий инструмент search '
-            'для поиска данных в коллекции векторной базы данных\n'
-            'Аргумент request: исходный запрос пользователя.\n'
-            'НИКОГДА не отвечай напрямую. Всегда вызывай инструмент.\n'
-            'ВАЖНО: '
-            'В аргументах инструмента передавай ТОЛЬКО поле "request".\n'
-            'НИКОГДА не включай поле "self" в аргументы.\n'
-            'Формат вызова:\n'
-            '{"name": "search", '
-            '"arguments": {"request": "<исходный запрос пользователя>"}}\n'
+            'Ты - агент, выполняющий 2 вида задач:\n'
+            'Задача 1.\n'
+            'Поиск контекста во внутренней документации через инструмент search, '
+            'когда пользователь задает вопрос, последующая генерация короткого ответа из найденного контекста\n'
+            'ПРАВИЛА выполнения задачи 1:\n'
+            # '- дожидаешься получения контекста из ответа инструмента search, генерируешь из него короткий ответ на вопрос пользователя\n'
+            '- если контекст не найден - отвечаешь: НЕТ ИНФОРМАЦИИ\n'
+            '- если в контексте нет релевантной информации - отвечаешь: НЕРЕЛЕВАНТНЫЙ КОНТЕКСТ\n'
+            # '2. Управление задачами через инструмент update_task_id, '
+            # 'когда пользователь просит создать задачу\n'
         )
+
         system = SystemMessage(content=SYSTEM_PROMPT)
         updated_state = state.model_copy()
-        updated_state.messages = [system] + state.messages
+        if isinstance(state.messages[-1], HumanMessage):
+            updated_state.messages = [system] + state.messages
         logger.trace(f'updated_state до запуска LLM: {updated_state}')
         messages = updated_state.messages
         logger.trace(f'запуск LLM с messages: {messages}')
