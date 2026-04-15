@@ -62,7 +62,7 @@ async def create_task_id(task_id: int | None = None) -> int:
     """
     Создаёт новый идентификатор задачи, увеличивая переданный ID на 1.
 
-    Если task_id не указан (None), начинает нумерацию с 1.
+    Если task_id не указан (None), начинает нумерацию с 0.
     Если передан task_id, возвращает task_id + 1.
 
     Args:
@@ -73,7 +73,7 @@ async def create_task_id(task_id: int | None = None) -> int:
         str: строковое представление нового идентификатора задачи.
     """
     logger.debug('Запуск create_task_id')
-    if task_id is not None:
+    if task_id is None:
         task_id = 0
     task_id += 1
     logger.debug(f'Создан task_id: {task_id}')
@@ -160,12 +160,37 @@ class DocAgent:
 
             def route_after_agent(state: State) -> str:
                 last_message = state.messages[-1]
-                if (
-                    hasattr(last_message, "tool_calls")
-                    and last_message.tool_calls
-                ):
+                logger.trace(f'last_message: {last_message}')
+                logger.trace(f'last_message.tool_calls: {last_message.tool_calls}')
+                if last_message.tool_calls:
+                    logger.trace('переход к узлу графа "tools"')
+                    return "tools"
+                elif last_message.content:
+                    content = last_message.content.replace("None", "null")
+                    import json
+                    tool_data = json.loads(content)
+                    name = tool_data["name"]
+                    logger.trace(f'tool_data: {tool_data}')
+                    logger.trace(f'"name" {name, type(name)}')
+                    parameters = tool_data["parameters"]
+                    logger.trace(f'"parameters" {parameters, type(parameters)}')
+                    id = str(hash(tool_data["name"]))
+                    logger.trace(f'"id" {id, type(id)}')
+                    from langchain_core.messages import ToolCall
+                    tool_call = ToolCall(
+                        name=name,
+                        args=parameters,
+                        id=id,
+                        type='tool_call'
+                    )
+                    logger.trace(f'tool_call: {tool_call}')
+                    state.messages[-1].tool_calls.append(tool_call)
+                    last_message = state.messages[-1]
+                    logger.trace(f'last_message после обработки: {last_message}')
+                    logger.trace('переход к узлу графа "tools"')
                     return "tools"
                 else:
+                    logger.trace('переход к узлу графа END')
                     return END
             workflow.add_conditional_edges(
                 'agent',
@@ -233,6 +258,7 @@ class DocAgent:
         messages = state.messages
         logger.trace(f'запуск LLM с messages: {messages}')
         llm_response = await self.llm.ainvoke(messages)
+        # llm_response = await self.llm._acall_with_config(messages)
         logger.trace(f'ответ LLM: {llm_response}')
         state.messages.append(llm_response)
         logger.trace(f'updated_state: {state}')
