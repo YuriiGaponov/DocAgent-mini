@@ -218,16 +218,44 @@ class DocAgent:
         """
         Обрабатывает текущее состояние диалога через LLM.
 
-        Добавляет системный промпт и вызывает LLM для генерации ответа
-        или вызова инструмента.
+        Вызывает языковую модель для генерации ответа или вызова инструмента.
 
         Args:
-            state (State): текущее состояние диалога.
+            state (State): текущее состояние диалога, включающее историю
+                сообщений пользователя и ассистента.
 
         Returns:
-            State: обновлённое состояние с ответом LLM.
+            State: обновлённое состояние с добавленным ответом LLM
+                в истории сообщений.
         """
         logger.debug('Запуск DocAgent.call_model')
+        logger.trace(f'получено состояние {state}')
+        messages = state.messages
+        logger.trace(f'запуск LLM с messages: {messages}')
+        llm_response = await self.llm.ainvoke(messages)
+        logger.trace(f'ответ LLM: {llm_response}')
+        state.messages.append(llm_response)
+        logger.trace(f'updated_state: {state}')
+        return state
+
+    def create_initial_state(self, request_data: AskRequest) -> State:
+        """
+        Создаёт начальное состояние диалога на основе запроса пользователя.
+
+        Формирует состояние с системным промтом и сообщением пользователя.
+
+        Args:
+            request_data (AskRequest): объект с данными запроса,
+                содержащий идентификатор пользователя (user_id) и текст
+                вопроса (query).
+
+        Returns:
+            State: начальное состояние диалога, включающее:
+                - user_id: идентификатор пользователя;
+                - messages: список из системного промпта и сообщения
+                  пользователя.
+        """
+        logger.debug('Запуск DocAgent.create_initial_state')
         SYSTEM_PROMPT = (
             'Ты - агент, выполняющий 3 вида задач:\n'
             'Задача 1.\n'
@@ -241,19 +269,15 @@ class DocAgent:
             'Создание комментариев для задач через инструмент add_comment, '
             'когда пользователь просит добавить комментарий к задаче\n'
         )
-
-        system = SystemMessage(content=SYSTEM_PROMPT)
-        updated_state = state.model_copy()
-        if isinstance(state.messages[-1], HumanMessage):
-            updated_state.messages = [system] + state.messages
-        logger.trace(f'updated_state до запуска LLM: {updated_state}')
-        messages = updated_state.messages
-        logger.trace(f'запуск LLM с messages: {messages}')
-        llm_response = await self.llm.ainvoke(messages)
-        logger.trace(f'ответ LLM: {llm_response}')
-        updated_state.messages.append(llm_response)
-        logger.trace(f'updated_state: {updated_state}')
-        return updated_state
+        initial_state = State(
+            user_id=request_data.user_id,
+            messages=[
+                SystemMessage(content=SYSTEM_PROMPT),
+                HumanMessage(content=request_data.query)
+            ]
+        )
+        logger.trace(f'initial_state: {initial_state}')
+        return initial_state
 
     async def process_query(self, request_data: AskRequest):
         """
@@ -278,13 +302,7 @@ class DocAgent:
         """
         logger.debug('Запуск DocAgent.process_query')
         logger.trace(f'входящие данные: {request_data}')
-        initial_state = State(
-            user_id=request_data.user_id,
-            messages=[
-                HumanMessage(content=request_data.query)
-            ]
-        )
-        logger.trace(f'initial_state: {initial_state}')
+        initial_state = self.create_initial_state(request_data)
         logger.trace('запуск графа')
         final_state = await self.graph.ainvoke(initial_state)
         logger.trace(f'final_state: {final_state}')
