@@ -153,10 +153,10 @@ class DocAgent:
         """
         if self._graph is None:
             workflow = StateGraph(State)
-            workflow.add_node('model', self.call_model)
+            workflow.add_node('agent', self.call_model)
             workflow.add_node('tools', self.tool_node)
             workflow.add_node("update", self.update_task_id)
-            workflow.add_edge(START, 'model')
+            workflow.add_edge(START, 'agent')
 
             def route_after_agent(state: State) -> str:
                 last_message = state.messages[-1]
@@ -168,10 +168,10 @@ class DocAgent:
                 else:
                     return END
             workflow.add_conditional_edges(
-                'model',
+                'agent',
                 route_after_agent
             )
-            workflow.add_edge('tools', 'model')
+            workflow.add_edge('tools', 'agent')
             self._graph = workflow.compile()
             logger.trace('граф скомпилирован')
         return self._graph
@@ -196,7 +196,9 @@ class DocAgent:
         В текущей реализации включает инструмент поиска, созданный
         через create_search_tool с настройками агента.
         """
-        return [create_search_tool(self.settings), create_task_id]
+        return [
+            create_search_tool(self.settings), create_task_id, add_comment
+        ]
 
     @property
     def tool_node(self) -> ToolNode:
@@ -216,41 +218,66 @@ class DocAgent:
         """
         Обрабатывает текущее состояние диалога через LLM.
 
-        Добавляет системный промпт и вызывает LLM для генерации ответа
-        или вызова инструмента.
+        Вызывает языковую модель для генерации ответа или вызова инструмента.
 
         Args:
-            state (State): текущее состояние диалога.
+            state (State): текущее состояние диалога, включающее историю
+                сообщений пользователя и ассистента.
 
         Returns:
-            State: обновлённое состояние с ответом LLM.
+            State: обновлённое состояние с добавленным ответом LLM
+                в истории сообщений.
         """
         logger.debug('Запуск DocAgent.call_model')
-        SYSTEM_PROMPT = (
-            'Ты - агент, выполняющий 2 вида задач:\n'
-            'Задача 1.\n'
-            'Поиск контекста во внутренней документации через инструмент search, '
-            'когда пользователь задает вопрос, последующая генерация короткого ответа из найденного контекста\n'
-            'ПРАВИЛА выполнения задачи 1:\n'
-            # '- дожидаешься получения контекста из ответа инструмента search, генерируешь из него короткий ответ на вопрос пользователя\n'
-            '- если контекст не найден - отвечаешь: НЕТ ИНФОРМАЦИИ\n'
-            '- если в контексте нет релевантной информации - отвечаешь: НЕРЕЛЕВАНТНЫЙ КОНТЕКСТ\n'
-            # '2. Управление задачами через инструмент update_task_id, '
-            # 'когда пользователь просит создать задачу\n'
-        )
-
-        system = SystemMessage(content=SYSTEM_PROMPT)
-        updated_state = state.model_copy()
-        if isinstance(state.messages[-1], HumanMessage):
-            updated_state.messages = [system] + state.messages
-        logger.trace(f'updated_state до запуска LLM: {updated_state}')
-        messages = updated_state.messages
+        logger.trace(f'получено состояние {state}')
+        messages = state.messages
         logger.trace(f'запуск LLM с messages: {messages}')
         llm_response = await self.llm.ainvoke(messages)
         logger.trace(f'ответ LLM: {llm_response}')
-        updated_state.messages.append(llm_response)
-        logger.trace(f'updated_state: {updated_state}')
-        return updated_state
+        state.messages.append(llm_response)
+        logger.trace(f'updated_state: {state}')
+        return state
+
+    def create_initial_state(self, request_data: AskRequest) -> State:
+        """
+        Создаёт начальное состояние диалога на основе запроса пользователя.
+
+        Формирует состояние с системным промтом и сообщением пользователя.
+
+        Args:
+            request_data (AskRequest): объект с данными запроса,
+                содержащий идентификатор пользователя (user_id) и текст
+                вопроса (query).
+
+        Returns:
+            State: начальное состояние диалога, включающее:
+                - user_id: идентификатор пользователя;
+                - messages: список из системного промпта и сообщения
+                  пользователя.
+        """
+        logger.debug('Запуск DocAgent.create_initial_state')
+        SYSTEM_PROMPT = (
+            'Ты - агент, выполняющий 3 вида задач:\n'
+            'Задача 1.\n'
+            'Поиск контекста во внутренней документации через инструмент '
+            'search, когда пользователь задает вопрос, последующая генерация '
+            'короткого ответа из найденного контекста\n'
+            'Задача 2.\n'
+            'Создание задач через инструмент update_task_id, '
+            'когда пользователь просит создать задачу\n'
+            'Задача 3.\n'
+            'Создание комментариев для задач через инструмент add_comment, '
+            'когда пользователь просит добавить комментарий к задаче\n'
+        )
+        initial_state = State(
+            user_id=request_data.user_id,
+            messages=[
+                SystemMessage(content=SYSTEM_PROMPT),
+                HumanMessage(content=request_data.query)
+            ]
+        )
+        logger.trace(f'initial_state: {initial_state}')
+        return initial_state
 
     async def process_query(self, request_data: AskRequest):
         """
@@ -275,13 +302,7 @@ class DocAgent:
         """
         logger.debug('Запуск DocAgent.process_query')
         logger.trace(f'входящие данные: {request_data}')
-        initial_state = State(
-            user_id=request_data.user_id,
-            messages=[
-                HumanMessage(content=request_data.query)
-            ]
-        )
-        logger.trace(f'initial_state: {initial_state}')
+        initial_state = self.create_initial_state(request_data)
         logger.trace('запуск графа')
         final_state = await self.graph.ainvoke(initial_state)
         logger.trace(f'final_state: {final_state}')
