@@ -153,10 +153,10 @@ class DocAgent:
         """
         if self._graph is None:
             workflow = StateGraph(State)
-            workflow.add_node('model', self.call_model)
+            workflow.add_node('agent', self.call_model)
             workflow.add_node('tools', self.tool_node)
             workflow.add_node("update", self.update_task_id)
-            workflow.add_edge(START, 'model')
+            workflow.add_edge(START, 'agent')
 
             def route_after_agent(state: State) -> str:
                 last_message = state.messages[-1]
@@ -168,10 +168,10 @@ class DocAgent:
                 else:
                     return END
             workflow.add_conditional_edges(
-                'model',
+                'agent',
                 route_after_agent
             )
-            workflow.add_edge('tools', 'model')
+            workflow.add_edge('tools', 'agent')
             self._graph = workflow.compile()
             logger.trace('граф скомпилирован')
         return self._graph
@@ -196,7 +196,9 @@ class DocAgent:
         В текущей реализации включает инструмент поиска, созданный
         через create_search_tool с настройками агента.
         """
-        return [create_search_tool(self.settings), create_task_id]
+        return [
+            create_search_tool(self.settings), create_task_id, add_comment
+        ]
 
     @property
     def tool_node(self) -> ToolNode:
@@ -227,16 +229,17 @@ class DocAgent:
         """
         logger.debug('Запуск DocAgent.call_model')
         SYSTEM_PROMPT = (
-            'Ты - агент, выполняющий 2 вида задач:\n'
+            'Ты - агент, выполняющий 3 вида задач:\n'
             'Задача 1.\n'
-            'Поиск контекста во внутренней документации через инструмент search, '
-            'когда пользователь задает вопрос, последующая генерация короткого ответа из найденного контекста\n'
-            'ПРАВИЛА выполнения задачи 1:\n'
-            # '- дожидаешься получения контекста из ответа инструмента search, генерируешь из него короткий ответ на вопрос пользователя\n'
-            '- если контекст не найден - отвечаешь: НЕТ ИНФОРМАЦИИ\n'
-            '- если в контексте нет релевантной информации - отвечаешь: НЕРЕЛЕВАНТНЫЙ КОНТЕКСТ\n'
-            # '2. Управление задачами через инструмент update_task_id, '
-            # 'когда пользователь просит создать задачу\n'
+            'Поиск контекста во внутренней документации через инструмент '
+            'search, когда пользователь задает вопрос, последующая генерация '
+            'короткого ответа из найденного контекста\n'
+            'Задача 2.\n'
+            'Создание задач через инструмент update_task_id, '
+            'когда пользователь просит создать задачу\n'
+            'Задача 3.\n'
+            'Создание комментариев для задач через инструмент add_comment, '
+            'когда пользователь просит добавить комментарий к задаче\n'
         )
 
         system = SystemMessage(content=SYSTEM_PROMPT)
