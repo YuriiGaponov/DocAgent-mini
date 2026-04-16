@@ -21,6 +21,10 @@ from src.rag.rag_system import RAGSystem
 from src.settings import Settings
 
 
+# Имитация БД для хранения состояний
+STATES:  dict[str, State] = {}
+
+
 SYSTEM_PROMPT = (
     'Ты - агент, выполняющий 3 вида задач:\n'
     'Задача 1.\n'
@@ -362,13 +366,21 @@ class DocAgent:
         logger.debug('Запуск DocAgent.create_initial_state')
         DocAgent.SYSTEM_MESSAGE = SystemMessage(content=SYSTEM_PROMPT)
         DocAgent.HUMAN_MESSAGE = HumanMessage(content=request_data.query)
-        initial_state = State(
-            user_id=request_data.user_id,
-            messages=[
-                DocAgent.SYSTEM_MESSAGE,
-                DocAgent.HUMAN_MESSAGE
-            ]
-        )
+        if f'{str(request_data.user_id)}' in STATES:
+            logger.trace('initial_state есть в БД')
+            initial_state = STATES[f'{str(request_data.user_id)}']
+            initial_state.messages.append(DocAgent.HUMAN_MESSAGE)
+            logger.trace('initial_state получен из БД')
+        else:
+            logger.trace('initial_state нет в БД')
+            initial_state = State(
+                user_id=request_data.user_id,
+                messages=[
+                    DocAgent.SYSTEM_MESSAGE,
+                    DocAgent.HUMAN_MESSAGE
+                ]
+            )
+            logger.trace('initial_state создан')
         logger.trace(f'initial_state: {initial_state}')
         return initial_state
 
@@ -399,5 +411,7 @@ class DocAgent:
         logger.trace('запуск графа')
         final_state = await self.graph.ainvoke(initial_state)
         logger.trace(f'final_state: {final_state}')
+        STATES[str(request_data.user_id)] = State(**final_state)
+        logger.trace(f'хранилище состояний {STATES}')
         response = final_state
         return response
