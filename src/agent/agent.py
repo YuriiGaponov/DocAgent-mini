@@ -35,9 +35,10 @@ SYSTEM_PROMPT = (
     'Создание задач через инструмент create_task_id, '
     'когда пользователь просит создать задачу\n'
     'ОБЯЗАТЕЛЬНО:\n'
+    # '"parameters": {"task_id": <task_id>}\n'
     'После успешного вызова инструмента create_task_id верни пользователю '
     'ответ в формате: "Создана задача <запрос пользователя> '
-    'с ID: create_task_id".\n'
+    'с ID: <task_id>".\n'
     'Задача 3.\n'
     'Создание комментариев для задач через инструмент add_comment, '
     'когда пользователь просит добавить комментарий к задаче <task_id>\n'
@@ -204,16 +205,20 @@ class DocAgent:
                     return "tools"
                 elif last_message.content and 'name' in last_message.content:
                     logger.trace(f'content {last_message.content}')
-                    content = last_message.content.replace("None", "null")
-                    logger.trace(
-                        f'замена "None" на "null" в content {content}'
-                    )
+                    content = last_message.content
+                    if "None" in content:
+                        content = content.replace("None", "null")
+                        logger.trace(
+                            f'замена "None" на "null" в content {content}'
+                        )
                     import json
                     tool_data = json.loads(content)
                     name = tool_data["name"]
                     logger.trace(f'tool_data: {tool_data}')
                     logger.trace(f'"name" {name, type(name)}')
                     parameters = tool_data["parameters"]
+                    if name == 'create_task_id':
+                        parameters['task_id'] = state.task_id
                     logger.trace(
                         f'"parameters" {parameters, type(parameters)}'
                     )
@@ -321,7 +326,8 @@ class DocAgent:
                 - остальные поля состояния сохранены без изменений.
         """
         logger.debug('Запуск DocAgent.update_task_id')
-        task_id = state.messages[-1].content
+        task_id = int(state.messages[-1].content)
+        logger.trace(f'новый task_id {task_id}, {type(task_id)}')
         state.task_id = task_id
         logger.trace(f'обновленное состояние {state}')
         return state
@@ -342,8 +348,8 @@ class DocAgent:
         """
         logger.debug('Запуск DocAgent.call_model')
         logger.trace(f'получено состояние {state}')
-        current_state = f'\ntask_id: {state.task_id}'
-        DocAgent.SYSTEM_MESSAGE.content = SYSTEM_PROMPT + current_state
+        current_state = f'текущий task_id: {state.task_id}\n'
+        DocAgent.SYSTEM_MESSAGE.content = current_state + SYSTEM_PROMPT
         state.messages = [
             DocAgent.SYSTEM_MESSAGE, DocAgent.HUMAN_MESSAGE
         ] + state.messages
