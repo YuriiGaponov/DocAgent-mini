@@ -48,7 +48,7 @@ SYSTEM_PROMPT = (
 )
 
 
-def create_search_tool(settings: Settings):
+def create_search_tool(rag_system: RAGSystem):
     """
     Создаёт инструмент поиска для интеграции с LangGraph.
 
@@ -78,7 +78,6 @@ def create_search_tool(settings: Settings):
             Exception: при ошибках взаимодействия с RAGSystem или векторной БД.
         """
         logger.debug('Запуск search')
-        rag_system = RAGSystem(settings)
         context = await rag_system.search(request)
         logger.debug(f'Получен контекст: {context}')
         return context
@@ -288,7 +287,7 @@ class DocAgent:
         через create_search_tool с настройками агента.
         """
         return [
-            create_search_tool(self.settings), create_task_id, add_comment
+            create_search_tool(self.rag_system), create_task_id, add_comment
         ]
 
     @property
