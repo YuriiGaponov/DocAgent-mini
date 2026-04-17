@@ -9,7 +9,6 @@ LangGraph.
 
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.state import CompiledStateGraph
@@ -17,116 +16,14 @@ from langgraph.prebuilt import ToolNode
 
 from src.logger import logger
 from src.models import AskRequest, State
+from src.agent.prompts import SYSTEM_PROMPT
+from src.agent.tools import TOOLS
 from src.rag.rag_system import RAGSystem
 from src.settings import Settings
 
 
 # Имитация БД для хранения состояний
 STATES:  dict[str, State] = {}
-
-
-SYSTEM_PROMPT = (
-    'Ты - агент, выполняющий 3 вида задач:\n'
-    'Задача 1.\n'
-    'Поиск контекста во внутренней документации через инструмент '
-    'search, когда пользователь задает вопрос, последующая генерация '
-    'короткого ответа из найденного контекста\n'
-    'Задача 2.\n'
-    'Создание задач через инструмент create_task_id, '
-    'когда пользователь просит создать задачу\n'
-    'ОБЯЗАТЕЛЬНО:\n'
-    'После успешного вызова инструмента create_task_id верни пользователю '
-    'ответ в формате: "Создана задача <запрос пользователя> '
-    'с ID: <task_id>".\n'
-    'Задача 3.\n'
-    'Создание комментариев для задач через инструмент add_comment, '
-    'когда пользователь просит добавить комментарий к задаче <task_id>\n'
-    'ОБЯЗАТЕЛЬНО после вызова add_comment:\n'
-    '- Если комментарий добавлен, ответь добавлен комментарий <комментарий> '
-    'к задаче ID <task_id>'
-    '- Если комментарий не добавлен, ответь нет созданных задач'
-)
-
-
-def create_search_tool(rag_system: RAGSystem):
-    """
-    Создаёт инструмент поиска для интеграции с LangGraph.
-
-    Возвращает асинхронную функцию search, настроенную на работу
-    с RAGSystem для конкретного экземпляра настроек.
-
-    Args:
-        settings (Settings): настройки приложения, используемые
-            для инициализации RAGSystem.
-    Returns:
-        Callable: инструмент search для использования в графе workflow.
-    """
-    @tool
-    async def search(request: str) -> str:
-        """
-        Инструмент поиска контекста в векторной базе данных.
-
-        Вызывает RAGSystem для поиска релевантной информации по запросу.
-
-        Args:
-            request (str): текстовый запрос пользователя для поиска.
-
-        Returns:
-            str: найденный контекст из векторной БД.
-
-        Raises:
-            Exception: при ошибках взаимодействия с RAGSystem или векторной БД.
-        """
-        logger.debug('Запуск search')
-        context = await rag_system.search(request)
-        logger.debug(f'Получен контекст: {context}')
-        return context
-    return search
-
-
-@tool
-async def create_task_id(task_id: int | None = None) -> int:
-    """
-    Создаёт задачу и возвращает её ID.
-
-    Если task_id не указан (None), начинает нумерацию с 0.
-    Если передан task_id, возвращает task_id + 1.
-
-    Args:
-        task_id (int | None): текущий идентификатор задачи.
-        По умолчанию — None.
-
-    Returns:
-        int: новый идентификатор задачи.
-    """
-    logger.debug('Запуск create_task_id')
-    if task_id is None:
-        task_id = 0
-    task_id += 1
-    logger.debug(f'Создан task_id: {task_id}')
-    return task_id
-
-
-@tool
-async def add_comment(task_id: int | None, comment: str) -> str:
-    """
-    Добавляет комментарий к задаче с указанным идентификатором.
-
-    Args:
-        task_id (int): идентификатор задачи, к которой добавляется комментарий.
-        comment (str): текст комментария.
-
-    Returns:
-        str: подтверждение добавления комментария или сообщение о
-        невозможности добавления в связи с отсутствием созданных задач.
-    """
-    logger.debug('Запуск add_comment')
-    if task_id is None or task_id == 0:
-        logger.debug('комментарий не добавлен')
-        return 'комментарий не добавлен, нет созданных задач'
-    result = f'Комментарий "{comment}" добавлен к задаче {task_id}'
-    logger.debug(f'Создан комментарий: {result}')
-    return 'комментарий добавлен'
 
 
 class DocAgent:
@@ -286,9 +183,7 @@ class DocAgent:
         В текущей реализации включает инструмент поиска, созданный
         через create_search_tool с настройками агента.
         """
-        return [
-            create_search_tool(self.rag_system), create_task_id, add_comment
-        ]
+        return TOOLS(self.rag_system)
 
     @property
     def tool_node(self) -> ToolNode:

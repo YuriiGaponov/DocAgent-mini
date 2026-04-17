@@ -52,6 +52,8 @@ DocAgent-mini
 ├─ src
 │  ├─ agent
 │  │  ├─ agent.py
+│  │  ├─ prompts.py
+│  │  ├─ tools.py
 │  │  └─ __init__.py
 │  ├─ api.py
 │  ├─ logger.py
