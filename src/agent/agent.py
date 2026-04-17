@@ -21,6 +21,10 @@ from src.rag.rag_system import RAGSystem
 from src.settings import Settings
 
 
+# Имитация БД для хранения состояний
+STATES:  dict[str, State] = {}
+
+
 SYSTEM_PROMPT = (
     'Ты - агент, выполняющий 3 вида задач:\n'
     'Задача 1.\n'
@@ -36,7 +40,11 @@ SYSTEM_PROMPT = (
     'с ID: create_task_id".\n'
     'Задача 3.\n'
     'Создание комментариев для задач через инструмент add_comment, '
-    'когда пользователь просит добавить комментарий к задаче\n'
+    'когда пользователь просит добавить комментарий к задаче <task_id>\n'
+    'ОБЯЗАТЕЛЬНО после вызова add_comment:\n'
+    '- Если комментарий добавлен, ответь добавлен комментарий <комментарий> '
+    'к задаче ID <task_id>'
+    '- Если комментарий не добавлен, ответь нет созданных задач'
 )
 
 
@@ -101,7 +109,7 @@ async def create_task_id(task_id: int | None = None) -> int:
 
 
 @tool
-async def add_comment(task_id: int, comment: str) -> str:
+async def add_comment(task_id: int | None, comment: str) -> str:
     """
     Добавляет комментарий к задаче с указанным идентификатором.
 
@@ -110,12 +118,16 @@ async def add_comment(task_id: int, comment: str) -> str:
         comment (str): текст комментария.
 
     Returns:
-        str: подтверждение добавления комментария с указанием ID задачи.
+        str: подтверждение добавления комментария или сообщение о
+        невозможности добавления в связи с отсутствием созданных задач.
     """
     logger.debug('Запуск add_comment')
+    if task_id is None or task_id == 0:
+        logger.debug('комментарий не добавлен')
+        return 'комментарий не добавлен, нет созданных задач'
     result = f'Комментарий "{comment}" добавлен к задаче {task_id}'
     logger.debug(f'Создан комментарий: {result}')
-    return result
+    return 'комментарий добавлен'
 
 
 class DocAgent:
@@ -311,10 +323,6 @@ class DocAgent:
         logger.debug('Запуск DocAgent.update_task_id')
         task_id = state.messages[-1].content
         state.task_id = task_id
-        messages = state.messages
-        state.messages = [
-            DocAgent.SYSTEM_MESSAGE, DocAgent.HUMAN_MESSAGE
-        ] + messages
         logger.trace(f'обновленное состояние {state}')
         return state
 
@@ -334,6 +342,11 @@ class DocAgent:
         """
         logger.debug('Запуск DocAgent.call_model')
         logger.trace(f'получено состояние {state}')
+        current_state = f'\ntask_id: {state.task_id}'
+        DocAgent.SYSTEM_MESSAGE.content = SYSTEM_PROMPT + current_state
+        state.messages = [
+            DocAgent.SYSTEM_MESSAGE, DocAgent.HUMAN_MESSAGE
+        ] + state.messages
         messages = state.messages
         logger.trace(f'запуск LLM с messages: {messages}')
         llm_response = await self.llm.ainvoke(messages)
@@ -362,13 +375,21 @@ class DocAgent:
         logger.debug('Запуск DocAgent.create_initial_state')
         DocAgent.SYSTEM_MESSAGE = SystemMessage(content=SYSTEM_PROMPT)
         DocAgent.HUMAN_MESSAGE = HumanMessage(content=request_data.query)
-        initial_state = State(
-            user_id=request_data.user_id,
-            messages=[
-                DocAgent.SYSTEM_MESSAGE,
-                DocAgent.HUMAN_MESSAGE
-            ]
-        )
+        if f'{str(request_data.user_id)}' in STATES:
+            logger.trace('initial_state есть в БД')
+            initial_state = STATES[f'{str(request_data.user_id)}']
+            initial_state.messages.append(DocAgent.HUMAN_MESSAGE)
+            logger.trace('initial_state получен из БД')
+        else:
+            logger.trace('initial_state нет в БД')
+            initial_state = State(
+                user_id=request_data.user_id,
+                messages=[
+                    DocAgent.SYSTEM_MESSAGE,
+                    DocAgent.HUMAN_MESSAGE
+                ]
+            )
+            logger.trace('initial_state создан')
         logger.trace(f'initial_state: {initial_state}')
         return initial_state
 
@@ -399,5 +420,7 @@ class DocAgent:
         logger.trace('запуск графа')
         final_state = await self.graph.ainvoke(initial_state)
         logger.trace(f'final_state: {final_state}')
+        STATES[str(request_data.user_id)] = State(**final_state)
+        logger.trace(f'хранилище состояний {STATES}')
         response = final_state
         return response
