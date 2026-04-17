@@ -315,10 +315,6 @@ class DocAgent:
         logger.debug('Запуск DocAgent.update_task_id')
         task_id = state.messages[-1].content
         state.task_id = task_id
-        messages = state.messages
-        state.messages = [
-            DocAgent.SYSTEM_MESSAGE, DocAgent.HUMAN_MESSAGE
-        ] + messages
         logger.trace(f'обновленное состояние {state}')
         return state
 
@@ -338,6 +334,9 @@ class DocAgent:
         """
         logger.debug('Запуск DocAgent.call_model')
         logger.trace(f'получено состояние {state}')
+        state.messages = [
+            DocAgent.SYSTEM_MESSAGE, DocAgent.HUMAN_MESSAGE
+        ] + state.messages
         messages = state.messages
         logger.trace(f'запуск LLM с messages: {messages}')
         llm_response = await self.llm.ainvoke(messages)
