@@ -37,9 +37,6 @@ class DocAgent:
     - обрабатывает диалоги через состояние State.
     """
 
-    SYSTEM_MESSAGE = ''
-    HUMAN_MESSAGE = ''
-
     def __init__(self, settings: Settings):
         """
         Инициализирует агента с заданными настройками приложения.
@@ -241,11 +238,6 @@ class DocAgent:
         """
         logger.debug('Запуск DocAgent.call_model')
         logger.trace(f'получено состояние {state}')
-        current_state = f'текущий task_id: {state.task_id}\n'
-        DocAgent.SYSTEM_MESSAGE.content = current_state + SYSTEM_PROMPT
-        state.messages = [
-            DocAgent.SYSTEM_MESSAGE, DocAgent.HUMAN_MESSAGE
-        ] + state.messages
         messages = state.messages
         logger.trace(f'запуск LLM с messages: {messages}')
         llm_response = await self.llm.ainvoke(messages)
@@ -254,39 +246,35 @@ class DocAgent:
         logger.trace(f'updated_state: {state}')
         return state
 
-    def create_initial_state(self, request_data: AskRequest) -> State:
+    def get_initial_state(self, user_id: int) -> State:
         """
         Создаёт начальное состояние диалога на основе запроса пользователя.
 
-        Формирует состояние с системным промтом и сообщением пользователя.
+        Пытается загрузить сохранённое состояние из хранилища STATES
+        по user_id.
+        Если состояние не найдено, создаёт новое с системным промтом.
 
         Args:
-            request_data (AskRequest): объект с данными запроса,
-                содержащий идентификатор пользователя (user_id) и текст
-                вопроса (query).
+            user_id (int): идентификатор пользователя.
 
-        Returns:
-            State: начальное состояние диалога, включающее:
-                - user_id: идентификатор пользователя;
-                - messages: список из системного промпта и сообщения
-                  пользователя.
+        State: начальное состояние диалога, включающее:
+            - user_id: идентификатор пользователя;
+            - messages: список сообщений, содержащий:
+                * SystemMessage с системным промптом (SYSTEM_PROMPT) —
+                    правила работы агента и контекст взаимодействия;
+                * (при наличии сохранённого состояния) -
+                    историю предыдущих сообщений диалога.
         """
         logger.debug('Запуск DocAgent.create_initial_state')
-        DocAgent.SYSTEM_MESSAGE = SystemMessage(content=SYSTEM_PROMPT)
-        DocAgent.HUMAN_MESSAGE = HumanMessage(content=request_data.query)
-        if str(request_data.user_id) in STATES:
+        if str(user_id) in STATES:
             logger.trace('initial_state есть в БД')
-            initial_state = STATES[str(request_data.user_id)]
-            initial_state.messages.append(DocAgent.HUMAN_MESSAGE)
+            initial_state = STATES[str(user_id)]
             logger.trace('initial_state получен из БД')
         else:
             logger.trace('initial_state нет в БД')
             initial_state = State(
-                user_id=request_data.user_id,
-                messages=[
-                    DocAgent.SYSTEM_MESSAGE,
-                    DocAgent.HUMAN_MESSAGE
-                ]
+                user_id=user_id,
+                messages=[SystemMessage(content=SYSTEM_PROMPT)]
             )
             logger.trace('initial_state создан')
         logger.trace(f'initial_state: {initial_state}')
@@ -315,7 +303,8 @@ class DocAgent:
         """
         logger.debug('Запуск DocAgent.process_query')
         logger.trace(f'входящие данные: {request_data}')
-        initial_state = self.create_initial_state(request_data)
+        initial_state = self.get_initial_state(request_data.user_id)
+        initial_state.messages.append(HumanMessage(content=request_data.query))
         logger.trace('запуск графа')
         final_state = await self.graph.ainvoke(initial_state)
         logger.trace(f'final_state: {final_state}')
