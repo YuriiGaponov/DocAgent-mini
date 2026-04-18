@@ -274,9 +274,9 @@ class DocAgent:
         logger.debug('Запуск DocAgent.create_initial_state')
         DocAgent.SYSTEM_MESSAGE = SystemMessage(content=SYSTEM_PROMPT)
         DocAgent.HUMAN_MESSAGE = HumanMessage(content=request_data.query)
-        if f'{str(request_data.user_id)}' in STATES:
+        if str(request_data.user_id) in STATES:
             logger.trace('initial_state есть в БД')
-            initial_state = STATES[f'{str(request_data.user_id)}']
+            initial_state = STATES[str(request_data.user_id)]
             initial_state.messages.append(DocAgent.HUMAN_MESSAGE)
             logger.trace('initial_state получен из БД')
         else:
