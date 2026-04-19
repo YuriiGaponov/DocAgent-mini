@@ -97,9 +97,7 @@ class DocAgent:
                     return END
 
             def route_after_tools(state: State) -> str:
-                last_message = state.messages[-1]
-                tool_name = last_message.name
-                if tool_name == 'create_task_id':
+                if state.messages[-1].name == 'create_task_id':
                     return "update"
                 else:
                     return 'agent'
@@ -253,5 +251,5 @@ class DocAgent:
         initial_state.messages.append(HumanMessage(content=request_data.query))
         final_state = await self.graph.ainvoke(initial_state)
         STATES[str(request_data.user_id)] = State(**final_state)
-        response = final_state
+        response = final_state["messages"][-1].content
         return response
