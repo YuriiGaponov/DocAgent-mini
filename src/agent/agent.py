@@ -62,7 +62,6 @@ class DocAgent:
                 model=self.settings.LLM_MODEL,
                 temperature=self.settings.LLM_TEMPERATURE
             ).bind_tools(self.tools)
-        logger.trace(f'используется LLM: {self._llm}')
         return self._llm
 
     @property
@@ -90,10 +89,6 @@ class DocAgent:
             def route_after_agent(state: State) -> str:
                 state = validate_tool_call(state)
                 last_message: AIMessage = state.messages[-1]
-                logger.trace(f'last_message: {last_message}')
-                logger.trace(
-                    f'last_message.tool_calls: {last_message.tool_calls}'
-                )
                 if last_message.tool_calls:
                     logger.trace('переход к узлу графа "tools"')
                     return "tools"
@@ -103,14 +98,10 @@ class DocAgent:
 
             def route_after_tools(state: State) -> str:
                 last_message = state.messages[-1]
-                logger.trace(f'last_message: {last_message}')
                 tool_name = last_message.name
-                logger.trace(f'tool_name: {tool_name}')
                 if tool_name == 'create_task_id':
-                    logger.trace('переход к узлу графа "update"')
                     return "update"
                 else:
-                    logger.trace('переход к узлу графа "agent"')
                     return 'agent'
 
             workflow.add_conditional_edges(
@@ -123,7 +114,6 @@ class DocAgent:
             )
             workflow.add_edge('update', 'agent')
             self._graph = workflow.compile()
-            logger.trace('граф скомпилирован')
         return self._graph
 
     @property
@@ -183,9 +173,8 @@ class DocAgent:
         """
         logger.debug('Запуск DocAgent.update_task_id')
         task_id = int(state.messages[-1].content)
-        logger.trace(f'новый task_id {task_id}, {type(task_id)}')
         state.task_id = task_id
-        logger.trace(f'обновленное состояние {state}')
+        logger.debug(f'обновленное состояние {state}')
         return state
 
     async def call_model(self, state: State):
@@ -203,13 +192,9 @@ class DocAgent:
                 в истории сообщений.
         """
         logger.debug('Запуск DocAgent.call_model')
-        logger.trace(f'получено состояние {state}')
         messages = state.messages
-        logger.trace(f'запуск LLM с messages: {messages}')
         llm_response = await self.llm.ainvoke(messages)
-        logger.trace(f'ответ LLM: {llm_response}')
         state.messages.append(llm_response)
-        logger.trace(f'updated_state: {state}')
         return state
 
     def get_initial_state(self, user_id: int) -> State:
@@ -233,17 +218,13 @@ class DocAgent:
         """
         logger.debug('Запуск DocAgent.create_initial_state')
         if str(user_id) in STATES:
-            logger.trace('initial_state есть в БД')
             initial_state = STATES[str(user_id)]
-            logger.trace('initial_state получен из БД')
         else:
-            logger.trace('initial_state нет в БД')
             initial_state = State(
                 user_id=user_id,
                 messages=[SystemMessage(content=SYSTEM_PROMPT)]
             )
-            logger.trace('initial_state создан')
-        logger.trace(f'initial_state: {initial_state}')
+        logger.debug('Получено initial_state')
         return initial_state
 
     async def process_query(self, request_data: AskRequest):
@@ -268,13 +249,9 @@ class DocAgent:
                 проблемах взаимодействия с LLM или графом workflow).
         """
         logger.debug('Запуск DocAgent.process_query')
-        logger.trace(f'входящие данные: {request_data}')
         initial_state = self.get_initial_state(request_data.user_id)
         initial_state.messages.append(HumanMessage(content=request_data.query))
-        logger.trace('запуск графа')
         final_state = await self.graph.ainvoke(initial_state)
-        logger.trace(f'final_state: {final_state}')
         STATES[str(request_data.user_id)] = State(**final_state)
-        logger.trace(f'хранилище состояний {STATES}')
         response = final_state
         return response
