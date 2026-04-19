@@ -10,9 +10,10 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import List
-
-from pydantic import BaseModel
+from typing import Annotated, List
+from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
+from pydantic import BaseModel, Field
 
 
 class DocumentMetadata(BaseModel):
@@ -77,3 +78,22 @@ class AskRequest(BaseModel):
     """
     user_id: int
     query: str
+
+
+class State(BaseModel):
+    """
+    Модель состояния диалога/задачи для агента DocAgent‑mini.
+
+    Описывает текущее состояние взаимодействия, включая:
+    - идентификатор пользователя (user_id);
+    - опциональный идентификатор задачи (task_id), который может быть
+      не задан (None) на начальных этапах;
+    - историю сообщений (messages) в виде списка объектов BaseMessage,
+      с поддержкой механизма добавления сообщений через add_messages.
+    """
+    user_id: int
+    task_id: int | None = None
+    messages: Annotated[
+        List[BaseMessage],
+        add_messages
+    ] = Field(default_factory=list)

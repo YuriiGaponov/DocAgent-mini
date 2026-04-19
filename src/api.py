@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 from src.logger import logger
 from src.models import AskRequest
 from src.settings import Settings, get_settings
-from src.rag.rag_system import RAGSystem
+from src.agent import DocAgent
 
 
 router = APIRouter()
@@ -56,16 +56,14 @@ async def ask(
     request_data: AskRequest, settings: Settings = Depends(get_settings)
 ):
     """
-    Обрабатывает пользовательский запрос через RAG‑систему.
-
-    Принимает вопрос от пользователя, передаёт его в RAGSystem для обработки
+    Принимает запрос пользователя, передаёт его агенту для обработки
     и возвращает сгенерированный ответ.
     """
     logger.info(f'Запрос на эндпоинт "/ask", {request_data}')
     try:
-        rag_sys = RAGSystem(settings)
-        response = await rag_sys.ask(request_data)
-        logger.info('Ответ получен.')
+        agent = DocAgent(settings)
+        response = await agent.process_query(request_data)
+        logger.success('Запрос успешно обработан.')
         return {'status': 'success', 'response': response}
     except Exception as e:
         logger.error(f'Ошибка при при подготовке ответа: {e}')

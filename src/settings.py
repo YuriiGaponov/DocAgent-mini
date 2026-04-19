@@ -7,6 +7,7 @@
 """
 
 from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -41,6 +42,7 @@ class Settings(BaseSettings):
 
     # Настройки LLM
     LLM_MODEL: str = 'mistral'
+    LLM_TEMPERATURE: float = 0.1
 
     model_config = SettingsConfigDict(
         env_file=(BASE_DIR / '.env'),
