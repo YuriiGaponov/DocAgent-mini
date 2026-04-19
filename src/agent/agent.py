@@ -8,8 +8,7 @@ LangGraph.
 """
 
 
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.tools import tool
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.state import CompiledStateGraph
@@ -17,117 +16,15 @@ from langgraph.prebuilt import ToolNode
 
 from src.logger import logger
 from src.models import AskRequest, State
+from src.agent.prompts import SYSTEM_PROMPT
+from src.agent.tools import TOOLS
+from src.agent.validators import validate_tool_call
 from src.rag.rag_system import RAGSystem
 from src.settings import Settings
 
 
 # Имитация БД для хранения состояний
 STATES:  dict[str, State] = {}
-
-
-SYSTEM_PROMPT = (
-    'Ты - агент, выполняющий 3 вида задач:\n'
-    'Задача 1.\n'
-    'Поиск контекста во внутренней документации через инструмент '
-    'search, когда пользователь задает вопрос, последующая генерация '
-    'короткого ответа из найденного контекста\n'
-    'Задача 2.\n'
-    'Создание задач через инструмент create_task_id, '
-    'когда пользователь просит создать задачу\n'
-    'ОБЯЗАТЕЛЬНО:\n'
-    'После успешного вызова инструмента create_task_id верни пользователю '
-    'ответ в формате: "Создана задача <запрос пользователя> '
-    'с ID: <task_id>".\n'
-    'Задача 3.\n'
-    'Создание комментариев для задач через инструмент add_comment, '
-    'когда пользователь просит добавить комментарий к задаче <task_id>\n'
-    'ОБЯЗАТЕЛЬНО после вызова add_comment:\n'
-    '- Если комментарий добавлен, ответь добавлен комментарий <комментарий> '
-    'к задаче ID <task_id>'
-    '- Если комментарий не добавлен, ответь нет созданных задач'
-)
-
-
-def create_search_tool(settings: Settings):
-    """
-    Создаёт инструмент поиска для интеграции с LangGraph.
-
-    Возвращает асинхронную функцию search, настроенную на работу
-    с RAGSystem для конкретного экземпляра настроек.
-
-    Args:
-        settings (Settings): настройки приложения, используемые
-            для инициализации RAGSystem.
-    Returns:
-        Callable: инструмент search для использования в графе workflow.
-    """
-    @tool
-    async def search(request: str) -> str:
-        """
-        Инструмент поиска контекста в векторной базе данных.
-
-        Вызывает RAGSystem для поиска релевантной информации по запросу.
-
-        Args:
-            request (str): текстовый запрос пользователя для поиска.
-
-        Returns:
-            str: найденный контекст из векторной БД.
-
-        Raises:
-            Exception: при ошибках взаимодействия с RAGSystem или векторной БД.
-        """
-        logger.debug('Запуск search')
-        rag_system = RAGSystem(settings)
-        context = await rag_system.search(request)
-        logger.debug(f'Получен контекст: {context}')
-        return context
-    return search
-
-
-@tool
-async def create_task_id(task_id: int | None = None) -> int:
-    """
-    Создаёт задачу и возвращает её ID.
-
-    Если task_id не указан (None), начинает нумерацию с 0.
-    Если передан task_id, возвращает task_id + 1.
-
-    Args:
-        task_id (int | None): текущий идентификатор задачи.
-        По умолчанию — None.
-
-    Returns:
-        int: новый идентификатор задачи.
-    """
-    logger.debug('Запуск create_task_id')
-    if task_id is None:
-        task_id = 0
-    task_id += 1
-    logger.debug(f'Создан task_id: {task_id}')
-    return task_id
-
-
-@tool
-async def add_comment(task_id: int | None, comment: str) -> str:
-    """
-    Добавляет комментарий к задаче с указанным идентификатором.
-
-    Args:
-        task_id (int): идентификатор задачи, к которой добавляется комментарий.
-        comment (str): текст комментария.
-
-    Returns:
-        str: подтверждение добавления комментария или сообщение о
-        невозможности добавления в связи с отсутствием созданных задач.
-    """
-    logger.debug('Запуск add_comment')
-    if task_id is None or task_id == 0:
-        logger.debug('комментарий не добавлен')
-        return 'комментарий не добавлен, нет созданных задач'
-    result = f'Комментарий "{comment}" добавлен к задаче {task_id}'
-    logger.debug(f'Создан комментарий: {result}')
-    return 'комментарий добавлен'
 
 
 class DocAgent:
@@ -140,9 +37,6 @@ class DocAgent:
     - маршрутизирует запросы к инструментам (например, search);
     - обрабатывает диалоги через состояние State.
     """
-
-    SYSTEM_MESSAGE = ''
-    HUMAN_MESSAGE = ''
 
     def __init__(self, settings: Settings):
         """
@@ -168,7 +62,6 @@ class DocAgent:
                 model=self.settings.LLM_MODEL,
                 temperature=self.settings.LLM_TEMPERATURE
             ).bind_tools(self.tools)
-        logger.trace(f'используется LLM: {self._llm}')
         return self._llm
 
     @property
@@ -194,48 +87,9 @@ class DocAgent:
             workflow.add_edge(START, 'agent')
 
             def route_after_agent(state: State) -> str:
-                last_message = state.messages[-1]
-                logger.trace(f'last_message: {last_message}')
-                logger.trace(
-                    f'last_message.tool_calls: {last_message.tool_calls}'
-                )
+                state = validate_tool_call(state)
+                last_message: AIMessage = state.messages[-1]
                 if last_message.tool_calls:
-                    logger.trace('переход к узлу графа "tools"')
-                    return "tools"
-                elif last_message.content and 'name' in last_message.content:
-                    logger.trace(f'content {last_message.content}')
-                    content = last_message.content
-                    if "None" in content:
-                        content = content.replace("None", "null")
-                        logger.trace(
-                            f'замена "None" на "null" в content {content}'
-                        )
-                    import json
-                    tool_data = json.loads(content)
-                    name = tool_data["name"]
-                    logger.trace(f'tool_data: {tool_data}')
-                    logger.trace(f'"name" {name, type(name)}')
-                    parameters = tool_data["parameters"]
-                    if name == 'create_task_id':
-                        parameters['task_id'] = state.task_id
-                    logger.trace(
-                        f'"parameters" {parameters, type(parameters)}'
-                    )
-                    id = str(hash(tool_data["name"]))
-                    logger.trace(f'"id" {id, type(id)}')
-                    from langchain_core.messages import ToolCall
-                    tool_call = ToolCall(
-                        name=name,
-                        args=parameters,
-                        id=id,
-                        type='tool_call'
-                    )
-                    logger.trace(f'tool_call: {tool_call}')
-                    state.messages[-1].tool_calls.append(tool_call)
-                    last_message = state.messages[-1]
-                    logger.trace(
-                        f'last_message после обработки: {last_message}'
-                    )
                     logger.trace('переход к узлу графа "tools"')
                     return "tools"
                 else:
@@ -244,14 +98,10 @@ class DocAgent:
 
             def route_after_tools(state: State) -> str:
                 last_message = state.messages[-1]
-                logger.trace(f'last_message: {last_message}')
                 tool_name = last_message.name
-                logger.trace(f'tool_name: {tool_name}')
                 if tool_name == 'create_task_id':
-                    logger.trace('переход к узлу графа "update"')
                     return "update"
                 else:
-                    logger.trace('переход к узлу графа "agent"')
                     return 'agent'
 
             workflow.add_conditional_edges(
@@ -264,7 +114,6 @@ class DocAgent:
             )
             workflow.add_edge('update', 'agent')
             self._graph = workflow.compile()
-            logger.trace('граф скомпилирован')
         return self._graph
 
     @property
@@ -287,9 +136,7 @@ class DocAgent:
         В текущей реализации включает инструмент поиска, созданный
         через create_search_tool с настройками агента.
         """
-        return [
-            create_search_tool(self.settings), create_task_id, add_comment
-        ]
+        return TOOLS(self.rag_system)
 
     @property
     def tool_node(self) -> ToolNode:
@@ -326,9 +173,8 @@ class DocAgent:
         """
         logger.debug('Запуск DocAgent.update_task_id')
         task_id = int(state.messages[-1].content)
-        logger.trace(f'новый task_id {task_id}, {type(task_id)}')
         state.task_id = task_id
-        logger.trace(f'обновленное состояние {state}')
+        logger.debug(f'обновленное состояние {state}')
         return state
 
     async def call_model(self, state: State):
@@ -346,56 +192,39 @@ class DocAgent:
                 в истории сообщений.
         """
         logger.debug('Запуск DocAgent.call_model')
-        logger.trace(f'получено состояние {state}')
-        current_state = f'текущий task_id: {state.task_id}\n'
-        DocAgent.SYSTEM_MESSAGE.content = current_state + SYSTEM_PROMPT
-        state.messages = [
-            DocAgent.SYSTEM_MESSAGE, DocAgent.HUMAN_MESSAGE
-        ] + state.messages
         messages = state.messages
-        logger.trace(f'запуск LLM с messages: {messages}')
         llm_response = await self.llm.ainvoke(messages)
-        logger.trace(f'ответ LLM: {llm_response}')
         state.messages.append(llm_response)
-        logger.trace(f'updated_state: {state}')
         return state
 
-    def create_initial_state(self, request_data: AskRequest) -> State:
+    def get_initial_state(self, user_id: int) -> State:
         """
         Создаёт начальное состояние диалога на основе запроса пользователя.
 
-        Формирует состояние с системным промтом и сообщением пользователя.
+        Пытается загрузить сохранённое состояние из хранилища STATES
+        по user_id.
+        Если состояние не найдено, создаёт новое с системным промтом.
 
         Args:
-            request_data (AskRequest): объект с данными запроса,
-                содержащий идентификатор пользователя (user_id) и текст
-                вопроса (query).
+            user_id (int): идентификатор пользователя.
 
-        Returns:
-            State: начальное состояние диалога, включающее:
-                - user_id: идентификатор пользователя;
-                - messages: список из системного промпта и сообщения
-                  пользователя.
+        State: начальное состояние диалога, включающее:
+            - user_id: идентификатор пользователя;
+            - messages: список сообщений, содержащий:
+                * SystemMessage с системным промптом (SYSTEM_PROMPT) —
+                    правила работы агента и контекст взаимодействия;
+                * (при наличии сохранённого состояния) -
+                    историю предыдущих сообщений диалога.
         """
         logger.debug('Запуск DocAgent.create_initial_state')
-        DocAgent.SYSTEM_MESSAGE = SystemMessage(content=SYSTEM_PROMPT)
-        DocAgent.HUMAN_MESSAGE = HumanMessage(content=request_data.query)
-        if f'{str(request_data.user_id)}' in STATES:
-            logger.trace('initial_state есть в БД')
-            initial_state = STATES[f'{str(request_data.user_id)}']
-            initial_state.messages.append(DocAgent.HUMAN_MESSAGE)
-            logger.trace('initial_state получен из БД')
+        if str(user_id) in STATES:
+            initial_state = STATES[str(user_id)]
         else:
-            logger.trace('initial_state нет в БД')
             initial_state = State(
-                user_id=request_data.user_id,
-                messages=[
-                    DocAgent.SYSTEM_MESSAGE,
-                    DocAgent.HUMAN_MESSAGE
-                ]
+                user_id=user_id,
+                messages=[SystemMessage(content=SYSTEM_PROMPT)]
             )
-            logger.trace('initial_state создан')
-        logger.trace(f'initial_state: {initial_state}')
+        logger.debug('Получено initial_state')
         return initial_state
 
     async def process_query(self, request_data: AskRequest):
@@ -420,12 +249,9 @@ class DocAgent:
                 проблемах взаимодействия с LLM или графом workflow).
         """
         logger.debug('Запуск DocAgent.process_query')
-        logger.trace(f'входящие данные: {request_data}')
-        initial_state = self.create_initial_state(request_data)
-        logger.trace('запуск графа')
+        initial_state = self.get_initial_state(request_data.user_id)
+        initial_state.messages.append(HumanMessage(content=request_data.query))
         final_state = await self.graph.ainvoke(initial_state)
-        logger.trace(f'final_state: {final_state}')
         STATES[str(request_data.user_id)] = State(**final_state)
-        logger.trace(f'хранилище состояний {STATES}')
         response = final_state
         return response
