@@ -8,7 +8,7 @@ LangGraph.
 """
 
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.state import CompiledStateGraph
@@ -18,6 +18,7 @@ from src.logger import logger
 from src.models import AskRequest, State
 from src.agent.prompts import SYSTEM_PROMPT
 from src.agent.tools import TOOLS
+from src.agent.validators import validate_tool_call
 from src.rag.rag_system import RAGSystem
 from src.settings import Settings
 
@@ -87,48 +88,13 @@ class DocAgent:
             workflow.add_edge(START, 'agent')
 
             def route_after_agent(state: State) -> str:
-                last_message = state.messages[-1]
+                state = validate_tool_call(state)
+                last_message: AIMessage = state.messages[-1]
                 logger.trace(f'last_message: {last_message}')
                 logger.trace(
                     f'last_message.tool_calls: {last_message.tool_calls}'
                 )
                 if last_message.tool_calls:
-                    logger.trace('переход к узлу графа "tools"')
-                    return "tools"
-                elif last_message.content and 'name' in last_message.content:
-                    logger.trace(f'content {last_message.content}')
-                    content = last_message.content
-                    if "None" in content:
-                        content = content.replace("None", "null")
-                        logger.trace(
-                            f'замена "None" на "null" в content {content}'
-                        )
-                    import json
-                    tool_data = json.loads(content)
-                    name = tool_data["name"]
-                    logger.trace(f'tool_data: {tool_data}')
-                    logger.trace(f'"name" {name, type(name)}')
-                    parameters = tool_data["parameters"]
-                    if name == 'create_task_id':
-                        parameters['task_id'] = state.task_id
-                    logger.trace(
-                        f'"parameters" {parameters, type(parameters)}'
-                    )
-                    id = str(hash(tool_data["name"]))
-                    logger.trace(f'"id" {id, type(id)}')
-                    from langchain_core.messages import ToolCall
-                    tool_call = ToolCall(
-                        name=name,
-                        args=parameters,
-                        id=id,
-                        type='tool_call'
-                    )
-                    logger.trace(f'tool_call: {tool_call}')
-                    state.messages[-1].tool_calls.append(tool_call)
-                    last_message = state.messages[-1]
-                    logger.trace(
-                        f'last_message после обработки: {last_message}'
-                    )
                     logger.trace('переход к узлу графа "tools"')
                     return "tools"
                 else:

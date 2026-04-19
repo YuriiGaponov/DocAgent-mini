@@ -24,7 +24,7 @@
 * **pytest** — тестирование;
 * **Flashrank** — ранжирование результатов поиска;
 * **ollama** — запуск локальных LLM;
-* **mistral** — локальная LLM.
+* **llama3.1** — локальная LLM.
 
 ## Функциональные возможности
 
@@ -54,6 +54,7 @@ DocAgent-mini
 │  │  ├─ agent.py
 │  │  ├─ prompts.py
 │  │  ├─ tools.py
+│  │  ├─ validators.py
 │  │  └─ __init__.py
 │  ├─ api.py
 │  ├─ logger.py
