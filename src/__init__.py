@@ -9,8 +9,3 @@ src.__init__
 способствует повторному использованию кода и упрощает тестирование
 отдельных компонентов.
 """
-
-from src.settings import get_settings
-
-
-__all__ = ['get_settings']
