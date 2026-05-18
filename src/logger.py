@@ -46,8 +46,8 @@ def get_logger(name: str, settings: Settings) -> Logger:
 
     formatter = jsonlogger.JsonFormatter(
         (
-            "% (levelname)s % (name)s % (lineno)d % (asctime)s % (filename)s"
-            "% (message)s"
+            "%(asctime)s %(name)s %(filename)s %(lineno)d %(levelname)s"
+            "%(message)s"
         ),
         json_ensure_ascii=False
     )
