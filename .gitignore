@@ -1,7 +1,8 @@
 __pycache__/
 docs/
 .env
-logs/
+logs/*
+!logs/__init__.py
 .pytest_cache/
 venv/
 .vscode/

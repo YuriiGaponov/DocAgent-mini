@@ -13,7 +13,10 @@ src.settings
 
 
 from pathlib import Path
+from typing import Literal
 
+
+from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,17 +30,68 @@ class Settings(BaseSettings):
     Считывает параметры из файла .env и переменных окружения.
     """
 
-    # Описание
+    # === Описание ===
     TITLE: str = 'DocAgent-mini'
+    """str: Название приложения."""
+
     DESCRIPTION: str = (
         'Мини‑проект AI‑агента, который отвечает на вопросы пользователей '
         'по внутренней документации.'
     )
-    VERSION: str = '2.0'
+    """str: Краткое описание приложения."""
 
-    # Режим отладки
+    VERSION: str = '2.0'
+    """str: Версия приложения."""
+
+    # === Кодировка ===
+    ENCODING: str = 'UTF‑8'
+    """str: Кодировка для обработки текстовых данных."""
+
+    # === Режим отладки ===
     DEBUG: bool = False
     """bool: Флаг режима отладки приложения. По умолчанию — False."""
+
+    # === Настройки логирования ===
+    LOG_DIR: Path = BASE_DIR / 'logs'
+    """str: Директория для хранения логов приложения. По умолчанию — 'logs'."""
+
+    LOG_FILENAME: str = 'app_log.log'
+    """str: Имя файла логов. По умолчанию — 'app_log.log'."""
+
+    @computed_field
+    @property
+    def LOG_FILE_PATH(self) -> Path:
+        """
+        Вычисляет путь к файлу логов.
+
+        Если FULL_LOG_PATH задан — использует его.
+        Иначе формирует путь из LOG_DIR и LOG_FILENAME относительно BASE_DIR.
+
+        Returns:
+            Path: Полный путь к файлу логов.
+        """
+        return self.LOG_DIR / self.LOG_FILENAME
+
+    MIN_LOG_LEVEL: Literal[
+        'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
+    ] = 'INFO'
+    """str: Минимальный уровень логирования. По умолчанию — 'INFO'."""
+
+    @computed_field
+    @property
+    def LOG_LEVEL(self) -> str:
+        """
+        Устанавливает минимальный уровень логирования.
+
+        Если режим отладки включен — 'DEBUG'.
+        Иначе устанавливается значение MIN_LOG_LEVEL.
+
+        Returns:
+            str: Уровень логирования.
+        """
+        if self.DEBUG:
+            return 'DEBUG'
+        return self.MIN_LOG_LEVEL
 
     # Конфигурация получения настроек
     model_config = SettingsConfigDict(
@@ -47,15 +101,18 @@ class Settings(BaseSettings):
     )
 
 
+_settings: Settings = Settings()
+"""Глобальный экземпляр настроек."""
+
+
 def get_settings() -> Settings:
     """
-    Возвращает экземпляр класса Settings с загруженными настройками.
+    Возвращает глобальный экземпляр настроек приложения.
 
-    Создаёт новый объект Settings, который автоматически считывает
-    параметры из файла .env и переменных окружения согласно
-    конфигурации model_config.
+    Выступает как единый интерфейс для получения настроек.
+    При тестировании легко заменяется на мок.
 
     Returns:
         Settings: Настроенный экземпляр класса настроек приложения.
     """
-    return Settings()
+    return _settings
