@@ -6,8 +6,6 @@ main.py
 Инициализирует экземпляр FastAPI-приложения с настройками, загруженными
 из модуля src. Использует конфигурационные параметры для настройки режима
 отладки и описания API.
-
-Version: 2.0
 """
 
 from fastapi import FastAPI
@@ -18,5 +16,7 @@ settings = get_settings()
 
 app = FastAPI(
     debug=settings.DEBUG,
-    description=settings.DESCRIPTION
+    title=settings.TITLE,
+    description=settings.DESCRIPTION,
+    version=settings.VERSION
 )
