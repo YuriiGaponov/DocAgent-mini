@@ -38,7 +38,7 @@ def get_logger(name: str, settings: Settings) -> Logger:
     logger.setLevel(settings.LOG_LEVEL)
 
     handler = RotatingFileHandler(
-        filename=settings.LOG_FILE_PATH,
+        filename=settings.LOG_FILE,
         maxBytes=5 * 1024 * 1024,
         backupCount=3,
         encoding=settings.ENCODING

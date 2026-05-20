@@ -1,4 +1,6 @@
 __pycache__/
+data/*
+!data/__init__.py
 docs/
 .env
 logs/*
