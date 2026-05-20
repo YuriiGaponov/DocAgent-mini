@@ -12,6 +12,7 @@ src.settings
 """
 
 
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -22,6 +23,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 """Корневой путь проекта — директория, расположенная на уровень выше src."""
+
+ENV_MODE = os.getenv('ENVIRONMENT', 'development')
+"""Режим окружения: из ENVIRONMENT или 'development' по умолчанию."""
 
 
 class Settings(BaseSettings):
@@ -113,7 +117,7 @@ class Settings(BaseSettings):
 
     # Конфигурация получения настроек
     model_config = SettingsConfigDict(
-        env_file=(BASE_DIR / '.env'),
+        env_file=(BASE_DIR / f".env.{ENV_MODE}"),
         env_file_encoding='utf-8',
         extra='ignore'
     )
