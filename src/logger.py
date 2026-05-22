@@ -11,7 +11,7 @@ import logging
 from logging import Logger
 from logging.handlers import RotatingFileHandler
 
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger import json
 
 from src.settings import Settings, get_settings
 
@@ -44,7 +44,7 @@ def get_logger(name: str, settings: Settings) -> Logger:
         encoding=settings.ENCODING
     )
 
-    formatter = jsonlogger.JsonFormatter(
+    formatter = json.JsonFormatter(
         (
             "%(asctime)s %(name)s %(filename)s %(lineno)d %(levelname)s"
             "%(message)s"

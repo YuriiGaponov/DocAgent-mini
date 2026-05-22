@@ -102,7 +102,7 @@ class Settings(BaseSettings):
     """Path: Директория для Реляционной БД. По умолчанию — 'data'."""
 
     DB_NAME: str = 'DocAgent-mini.db'
-    """str: Имя БД. По умолчанию — 'app_log.log'."""
+    """str: Имя БД. По умолчанию — 'DocAgent-mini.db'."""
 
     @computed_field
     @property
