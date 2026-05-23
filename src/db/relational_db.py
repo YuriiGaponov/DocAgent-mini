@@ -28,10 +28,10 @@ src.db.relational_db
 """
 
 from sqlalchemy import Column, Integer
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.orm import declared_attr, declarative_base
 
-from src.settings import get_settings, Settings
+from src.settings import Settings
 
 
 class PreBase:
@@ -60,8 +60,6 @@ Base = declarative_base(cls=PreBase)
 и поле `id`. Используется как родительский класс для всех моделей БД.
 """
 
-settings = get_settings()
-
 
 def get_db_url(settings: Settings) -> str:
     """
@@ -82,6 +80,19 @@ def get_db_url(settings: Settings) -> str:
     return available_db_url[settings.DBMS]
 
 
-DATABASE_URL = get_db_url(settings)
+def get_db_engine(settings: Settings) -> AsyncEngine:
+    """
+    Создаёт и возвращает асинхронный движок SQLAlchemy для работы с БД.
 
-engine = create_async_engine(DATABASE_URL)
+    Args:
+        settings (Settings): объект настроек приложения, используемый
+                           для формирования URL подключения.
+
+    Returns:
+        AsyncEngine: асинхронный движок SQLAlchemy, настроенный
+                     для работы с указанной СУБД.
+
+    Пример использования:
+        engine = get_db_engine(settings)
+    """
+    return create_async_engine(get_db_url(settings))
