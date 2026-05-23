@@ -55,7 +55,8 @@
 6. Создайте и заполните по образцу файл окружения .env.\<тип окружения>. Название и описание поддерживаемых типов окружения и порядок заполнения приведены в файле ```.env.example```
 
 ## Запуск на локальном сервере
-Запустите сервер с помощью Uvicorn: ENVIRONMENT=development uvicorn main:app (ENVIRONMENT=testing, ENVIRONMENT=production). Сервер будет доступен по адресу:  `http://localhost:8000`
+- Примените созданные миграции: `alembic upgrade head`
+- Запустите сервер с помощью Uvicorn: `ENVIRONMENT=development uvicorn main:app` (ENVIRONMENT=testing, ENVIRONMENT=production). Сервер будет доступен по адресу:  `http://localhost:8000`
 
 ## Документация API (Swagger/OpenAPI)
 
