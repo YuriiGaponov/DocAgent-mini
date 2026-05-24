@@ -7,12 +7,14 @@ tests.conftest
 """
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from alembic import config
 from fastapi.testclient import TestClient
 
 from main import app
+from src.settings import Settings
 
 
 @pytest.fixture
@@ -34,3 +36,17 @@ def alembic_config():
     root_dir = Path(__file__).resolve().parent.parent
     alembic_ini = root_dir / "alembic.ini"
     return config.Config(str(alembic_ini))
+
+
+@pytest.fixture
+def mock_settings():
+    """Фикстура - мок настроек приложения."""
+    with patch("src.settings.get_settings") as mock_get_settings:
+        mock_settings = Settings(
+            TITLE="Test DocAgent‑mini",
+            DBMS="sqlite",
+            DB_DIR=Path(""),
+            DB_NAME=":memory",
+        )
+        mock_get_settings.return_value = mock_settings
+        yield mock_settings

@@ -11,3 +11,7 @@ src.db.__init__
 2. Реляционная база данных:
 для хранения данных пользователей, метаданных внутренней документации.
 """
+
+from src.db.relational_db import Base, get_providerDB
+
+__all__ = ['Base', 'get_providerDB']

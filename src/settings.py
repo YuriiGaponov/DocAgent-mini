@@ -104,17 +104,6 @@ class Settings(BaseSettings):
     DB_NAME: str = 'DocAgent-mini.db'
     """str: Имя БД. По умолчанию — 'DocAgent-mini.db'."""
 
-    @computed_field
-    @property
-    def DB(self) -> Path:
-        """
-        Формирует полное имя БД из DB_DIR и DB_NAME.
-
-        Returns:
-            Path: Полный путь к БД.
-        """
-        return self.DB_DIR / self.DB_NAME
-
     # Конфигурация получения настроек
     model_config = SettingsConfigDict(
         env_file=(BASE_DIR / f".env.{ENV_MODE}"),

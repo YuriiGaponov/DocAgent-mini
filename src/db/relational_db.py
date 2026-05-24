@@ -3,23 +3,15 @@ src.db.relational_db
 
 Модуль работы с реляционной базой данных в проекте DocAgent‑mini.
 
-Реализует инфраструктуру для взаимодействия с реляционным хранилищем
-на базе SQLAlchemy с поддержкой асинхронности:
-- определяет базовый класс моделей с предустановленными общими атрибутами;
-- настраивает подключение к БД с учётом выбранного типа СУБД;
-- создаёт асинхронный движок (engine) для выполнения операций с данными.
+Предоставляет инструменты для асинхронного взаимодействия с БД
+через SQLAlchemy:
+- `PreBase` и `Base`: базовые классы для создания моделей БД.
+- `ProviderDB`: управление подключением к БД и создание сессий.
+- `get_providerDB`: фабрика провайдеров БД.
 
-Ключевые компоненты модуля:
-
-- `PreBase`: базовый класс для моделей БД.
-- `Base`: декларативная база SQLAlchemy.
-- `get_db_url()`: функция для формирования URL подключения к БД.
-- `async_engine`: асинхронный движок SQLAlchemy.
-- `get_async_session()`:  асинхронный контекстный менеджер сессии БД.
-
-Цель модуля — предоставить унифицированный и расширяемый слой доступа
-к реляционной БД для хранения структурированных данных
-(задач, истории взаимодействий и т. д.) в рамках AI‑агента.
+Используется для хранения структурированных данных
+(задач, истории взаимодействий и т. д.)
+в рамках AI‑агента.
 """
 
 from collections.abc import AsyncGenerator
@@ -30,7 +22,8 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import declared_attr, declarative_base
 
-from src.settings import Settings, get_settings
+from src.logger import app_logger as logger
+from src.settings import Settings
 
 
 class PreBase:
@@ -51,50 +44,99 @@ class PreBase:
     id = Column(Integer, primary_key=True)
 
 
-Base = declarative_base(cls=PreBase)
 """
 Декларативная база для моделей SQLAlchemy.
 
 Наследует параметры от `PreBase`, включая автоматическое имя таблицы
 и поле `id`. Используется как родительский класс для всех моделей БД.
 """
-
-settings: Settings = get_settings()
-"""Экземпляр настроек приложения."""
+Base = declarative_base(cls=PreBase)
 
 
-def get_db_url() -> str:
+class ProviderDB:
     """
-    Формирует URL подключения к базе данных на основе настроек проекта.
+    Класс, управляющий подключением к реляционной БД и созданием сессий.
+
+    Инкапсулирует логику формирования URL БД, создания асинхронного движка
+    и предоставления сессий для работы с данными.
+
+    Args:
+        settings (Settings): объект настроек приложения, используемый для
+                             конфигурирования подключения к БД.
+    """
+    def __init__(self, settings: Settings):
+        self.settings: Settings = settings
+        # Словарь `available_db_url` можно расширять для поддержки новых СУБД.
+        self.available_db_url: dict[str, str] = {
+            'sqlite': (
+                f'sqlite+aiosqlite:///'
+                f'{self.settings.DB_DIR}/{self.settings.DB_NAME}'
+            )
+        }
+        self._async_engine: AsyncEngine | None = None
+
+    def get_db_url(self) -> str:
+        """
+        Формирует URL подключения к базе данных на основе настроек проекта.
+
+        Returns:
+            str: URL для подключения к выбранной СУБД.
+
+        Raises:
+            KeyError: если тип СУБД (settings.DBMS) не найден в
+                      `available_db_url`.
+        """
+        try:
+            return self.available_db_url[self.settings.DBMS]
+        except KeyError as e:
+            logger.error(
+                'Неподдерживаемая СУБД',
+                extra={
+                    'DBMS': self.settings.DBMS,
+                    'error': str(e)
+                }
+            )
+            raise
+
+    def get_async_engine(self) -> AsyncEngine:
+        """
+        Создаёт или возвращает существующий асинхронный движок SQLAlchemy.
+
+        Использует ленивую инициализацию: движок создаётся при первом вызове
+        метода и переиспользуется в дальнейшем.
+
+        Returns:
+            AsyncEngine: асинхронный движок SQLAlchemy.
+        """
+        if self._async_engine is None:
+            self._async_engine = create_async_engine(self.get_db_url())
+        return self._async_engine
+
+    async def get_async_session(self) -> AsyncGenerator[AsyncSession, None]:
+        """
+        Асинхронный контекстный менеджер для получения сессии БД.
+
+        Создаёт и предоставляет асинхронную сессию в контексте async with.
+
+        Yields:
+            AsyncSession: активная асинхронная сессия SQLAlchemy для выполнения
+                        запросов к БД.
+        """
+        async_session_maker = async_sessionmaker(
+            self.get_async_engine(), expire_on_commit=False
+        )
+        async with async_session_maker() as session:
+            yield session
+
+
+def get_providerDB(settings: Settings) -> ProviderDB:
+    """
+    Создаёт экземпляр ProviderDB с переданными настройками.
+
+    Args:
+        settings (Settings): объект настроек приложения.
 
     Returns:
-        str: URL для подключения к выбранной СУБД.
-
-    Примечание:
-        Словарь `available_db_url` можно расширять для поддержки новых СУБД.
+        ProviderDB: инициализированный провайдер БД.
     """
-    available_db_url: dict = {
-        'sqlite': f'sqlite+aiosqlite:///{settings.DB}'
-    }
-    return available_db_url[settings.DBMS]
-
-
-async_engine: AsyncEngine = create_async_engine(get_db_url(settings))
-"""Асинхронный движок SQLAlchemy для выполнения запросов к БД."""
-
-async_session_maker = async_sessionmaker(async_engine, expire_on_commit=False)
-"""Фабрика асинхронных сессий."""
-
-
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    """
-    Асинхронный контекстный менеджер для получения сессии БД.
-
-    Создаёт и предоставляет асинхронную сессию в контексте async with.
-
-    Yields:
-        AsyncSession: активная асинхронная сессия SQLAlchemy для выполнения
-                      запросов к БД.
-    """
-    async with async_session_maker as session:
-        yield session
+    return ProviderDB(settings)

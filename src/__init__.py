@@ -9,3 +9,11 @@ src.__init__
 способствует повторному использованию кода и упрощает тестирование
 отдельных компонентов.
 """
+
+from src.db import get_providerDB
+from src.settings import get_settings
+
+settings = get_settings()
+providerDB = get_providerDB(settings)
+
+__all__ = ['providerDB', 'settings']

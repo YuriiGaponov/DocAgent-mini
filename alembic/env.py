@@ -43,13 +43,13 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from src.db.relational_db import Base, get_db_url
-from src.settings import get_settings
+from src import providerDB
+from src.db import Base
 
 
 config = context.config
-# Значение "sqlalchemy.url" определяется настройками приложения
-config.set_main_option("sqlalchemy.url", get_db_url(get_settings()))
+# Значение "sqlalchemy.url" определяется в коде приложения
+config.set_main_option("sqlalchemy.url", providerDB.get_db_url())
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
