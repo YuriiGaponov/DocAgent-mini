@@ -14,7 +14,7 @@ src.db.relational_db
 - `PreBase`: базовый класс для моделей БД.
 - `Base`: декларативная база SQLAlchemy.
 - `get_db_url()`: функция для формирования URL подключения к БД.
-- `get_db_async_engine()`: функция создания асинхронного движка SQLAlchemy.
+- `async_engine`: асинхронный движок SQLAlchemy.
 - `get_async_session()`:  асинхронный контекстный менеджер сессии БД.
 
 Цель модуля — предоставить унифицированный и расширяемый слой доступа
@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import declared_attr, declarative_base
 
-from src.settings import Settings
+from src.settings import Settings, get_settings
 
 
 class PreBase:
@@ -59,13 +59,13 @@ Base = declarative_base(cls=PreBase)
 и поле `id`. Используется как родительский класс для всех моделей БД.
 """
 
+settings: Settings = get_settings()
+"""Экземпляр настроек приложения."""
 
-def get_db_url(settings: Settings) -> str:
+
+def get_db_url() -> str:
     """
     Формирует URL подключения к базе данных на основе настроек проекта.
-
-    Args:
-        settings (Settings): объект настроек приложения.
 
     Returns:
         str: URL для подключения к выбранной СУБД.
@@ -79,42 +79,22 @@ def get_db_url(settings: Settings) -> str:
     return available_db_url[settings.DBMS]
 
 
-def get_db_async_engine(settings: Settings) -> AsyncEngine:
-    """
-    Создаёт и возвращает асинхронный движок SQLAlchemy для работы с БД.
+async_engine: AsyncEngine = create_async_engine(get_db_url(settings))
+"""Асинхронный движок SQLAlchemy для выполнения запросов к БД."""
 
-    Args:
-        settings (Settings): объект настроек приложения, используемый
-                           для формирования URL подключения.
-
-    Returns:
-        AsyncEngine: асинхронный движок SQLAlchemy, настроенный
-                     для работы с указанной СУБД.
-
-    Пример использования:
-        engine = get_db_engine(settings)
-    """
-    return create_async_engine(get_db_url(settings))
+async_session_maker = async_sessionmaker(async_engine, expire_on_commit=False)
+"""Фабрика асинхронных сессий."""
 
 
-async def get_async_session(
-        settings: Settings
-) -> AsyncGenerator[AsyncSession, None]:
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Асинхронный контекстный менеджер для получения сессии БД.
 
-    Создаёт фабрику сессий на основе движка, полученного из
-    get_db_async_engine, и предоставляет сессию в контексте async with.
-
-    Args:
-        settings (Settings): объект настроек приложения, необходимый
-                           для инициализации движка БД.
+    Создаёт и предоставляет асинхронную сессию в контексте async with.
 
     Yields:
         AsyncSession: активная асинхронная сессия SQLAlchemy для выполнения
                       запросов к БД.
     """
-    async with async_sessionmaker(
-        get_db_async_engine(settings), expire_on_commit=False
-    ) as session:
+    async with async_session_maker as session:
         yield session

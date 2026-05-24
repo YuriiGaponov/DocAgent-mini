@@ -56,6 +56,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.warning('ЗАВЕРШЕНИЕ РАБОТЫ')
 
 settings = get_settings()
+"""Экземпляр настроек приложения."""
 
 app = FastAPI(
     debug=settings.DEBUG,
