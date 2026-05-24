@@ -16,7 +16,6 @@ src.db.relational_db
 
 from collections.abc import AsyncGenerator
 
-from sqlalchemy import Column, Integer
 from sqlalchemy.ext.asyncio import (
     AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 )
@@ -31,7 +30,7 @@ class PreBase:
     Базовый класс с предустановленными параметрами для моделей БД.
 
     Обеспечивает автоматическое формирование имени таблицы
-    на основе имени класса и добавляет поле `id`.
+    на основе имени класса.
     """
 
     @declared_attr
@@ -40,8 +39,6 @@ class PreBase:
         Формирует имя таблицы как строчное представление имени класса.
         """
         return cls.__name__.lower()
-
-    id = Column(Integer, primary_key=True)
 
 
 """

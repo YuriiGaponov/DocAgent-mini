@@ -44,7 +44,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from src import providerDB
-from src.db import Base
+from src.db import Base, models  # noqa
 
 
 config = context.config
