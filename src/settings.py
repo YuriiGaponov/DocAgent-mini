@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Literal
 
 
-from pydantic import computed_field
+from pydantic import PositiveInt, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -103,6 +103,15 @@ class Settings(BaseSettings):
 
     DB_NAME: str = 'DocAgent-mini.db'
     """str: Имя БД. По умолчанию — 'DocAgent-mini.db'."""
+
+    # === Авторизация ===
+    JWT_KEY_SECRET: str = 'SECRET'
+    """
+    Постоянный секретный ключ, который используется для кодирования JWT-токена.
+    """
+
+    JWT_TOKEN_LIFETIME: PositiveInt = 3600
+    """Время жизни JWT-токена в секундах."""
 
     # Конфигурация получения настроек
     model_config = SettingsConfigDict(
