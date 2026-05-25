@@ -8,12 +8,12 @@ src.db.models
 - `User`: модель пользователя.
 """
 
-from fastapi_users.db import SQLAlchemyBaseUserTableUUID
+from fastapi_users.db import SQLAlchemyBaseUserTable
 
 from src.db.relational_db import Base
 
 
-class User(SQLAlchemyBaseUserTableUUID, Base):
+class User(SQLAlchemyBaseUserTable, Base):
     """
     Модель пользователя для системы аутентификации и авторизации.
 
@@ -21,11 +21,11 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     и подключается к общей схеме БД через наследование от Base.
 
     Автоматически получает:
-    - __tablename__ = 'user' (из Base через __tablename__);
-    - интеграцию с асинхронным движком и сессиями.
+    - __tablename__ = 'user' (формируется из имени класса через Base);
+    - интеграцию с асинхронным движком и сессиями;
+    - поле id (Integer, первичный ключ) от Base.
 
-    Поля, унаследованные от SQLAlchemyBaseUserTableUUID:
-        - id (UUID): уникальный идентификатор пользователя;
+    Поля, унаследованные от SQLAlchemyBaseUserTable:
         - email (str): адрес электронной почты (уникальный ключ);
         - hashed_password (str): хешированный пароль;
         - is_active (bool): флаг активности учётной записи;
