@@ -11,9 +11,8 @@ src.__init__
 """
 
 from src.db import get_providerDB
-from src.settings import get_settings
+from src.settings import settings
 
-settings = get_settings()
 providerDB = get_providerDB(settings)
 
 __all__ = ['providerDB', 'settings']
