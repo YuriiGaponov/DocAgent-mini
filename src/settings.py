@@ -123,3 +123,7 @@ def get_settings() -> Settings:
         Settings: Настроенный экземпляр класса настроек приложения.
     """
     return Settings()
+
+
+"""Глобальный экземпляр настроек."""
+settings = get_settings()

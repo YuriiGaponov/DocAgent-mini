@@ -13,7 +13,7 @@ from logging.handlers import RotatingFileHandler
 
 from pythonjsonlogger import json
 
-from src.settings import Settings, get_settings
+from src.settings import Settings, settings
 
 
 def get_logger(name: str, settings: Settings) -> Logger:
@@ -59,4 +59,4 @@ def get_logger(name: str, settings: Settings) -> Logger:
 Главный логгер приложения.
 Использует настройки из модуля settings и форматирует логи в JSON.
 """
-app_logger = get_logger('app_logger', get_settings())
+app_logger = get_logger('app_logger', settings)

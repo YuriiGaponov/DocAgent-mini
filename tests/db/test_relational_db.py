@@ -17,7 +17,7 @@ from src.db.relational_db import get_providerDB
 from src.settings import Settings
 
 
-class TestRelationalDB:
+class TestProviderDB:
     """
     Тестовый класс для проверки функционала модуля src.db.relational_db.
 

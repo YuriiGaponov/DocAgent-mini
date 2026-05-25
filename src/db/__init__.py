@@ -13,5 +13,8 @@ src.db.__init__
 """
 
 from src.db.relational_db import Base, get_providerDB
+from src.settings import settings
 
-__all__ = ['Base', 'get_providerDB']
+providerDB = get_providerDB(settings)
+
+__all__ = ['Base', 'providerDB', 'get_providerDB']
