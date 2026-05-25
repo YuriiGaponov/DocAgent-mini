@@ -112,10 +112,6 @@ class Settings(BaseSettings):
     )
 
 
-_settings: Settings = Settings()
-"""Глобальный экземпляр настроек."""
-
-
 def get_settings() -> Settings:
     """
     Возвращает глобальный экземпляр настроек приложения.
@@ -126,4 +122,4 @@ def get_settings() -> Settings:
     Returns:
         Settings: Настроенный экземпляр класса настроек приложения.
     """
-    return _settings
+    return Settings()
