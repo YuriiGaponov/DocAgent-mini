@@ -10,9 +10,7 @@ src.__init__
 отдельных компонентов.
 """
 
-from src.db import get_providerDB
+from src.db import providerDB
 from src.settings import settings
-
-providerDB = get_providerDB(settings)
 
 __all__ = ['providerDB', 'settings']
