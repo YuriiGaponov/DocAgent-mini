@@ -16,9 +16,6 @@ from pythonjsonlogger import json
 from src.settings import Settings, get_settings
 
 
-settings: Settings = get_settings()
-
-
 def get_logger(name: str, settings: Settings) -> Logger:
     """
     Создаёт и настраивает экземпляр логгера с ротацией файлов
@@ -58,8 +55,8 @@ def get_logger(name: str, settings: Settings) -> Logger:
     return logger
 
 
-app_logger = get_logger('app_logger', settings)
 """
-Экземпляр логгера для основного приложения.
+Главный логгер приложения.
 Использует настройки из модуля settings и форматирует логи в JSON.
 """
+app_logger = get_logger('app_logger', get_settings())
