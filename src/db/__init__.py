@@ -18,9 +18,13 @@ from src.db.relational_db import (
 )
 from src.settings import settings
 
+"""Глобальный экземпляр провайдера реляционной БД."""
 providerDB = get_providerDB(settings)
+
+"""Зависимость для получения асинхронной сессии БД."""
+async_session_dependency = create_async_session_dependency(providerDB)
 
 __all__ = [
     'Base', 'providerDB', 'get_providerDB',
-    'create_async_session_dependency', 'User'
+    'async_session_dependency', 'User'
 ]

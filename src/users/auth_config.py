@@ -14,7 +14,7 @@ src.users.auth_config
 from typing import Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi_users import BaseUserManager, IntegerIDMixin
+from fastapi_users import BaseUserManager, FastAPIUsers, IntegerIDMixin
 from fastapi_users.authentication import (
     AuthenticationBackend, BearerTransport, JWTStrategy
 )
@@ -99,3 +99,31 @@ class UserManager(BaseUserManager, IntegerIDMixin):
     - транспортом (BearerTransport): для выдачи JWT‑токенов после успешной
       аутентификации.
     """
+
+
+async def get_user_manager_dependency(
+    user_db_dependency: Callable[[], AsyncSession]
+):
+    """
+    Зависимость для получения экземпляра менеджера пользователей в FastAPI.
+
+    Args:
+        user_db_dependency: Функция‑зависимость,
+            возвращающая экземпляр SQLAlchemyUserDatabase.
+    """
+    user_db = await user_db_dependency()
+    yield UserManager(user_db)
+
+
+def get_fastapi_users(user_manager: Callable) -> FastAPIUsers:
+    """
+    Фабрика для создания экземпляра FastAPIUsers — центрального компонента
+    системы аутентификации.
+
+    Объединяет менеджер пользователей и бэкенды аутентификации в единый объект,
+    который предоставляет готовые эндпоинты для работы с пользователями
+    """
+    return FastAPIUsers(
+        get_user_manager=user_manager,
+        auth_backends=[auth_backend]
+    )
