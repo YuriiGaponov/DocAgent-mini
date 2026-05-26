@@ -10,11 +10,34 @@ src.users.users_config
     объединяющий транспорт и стратегию.
 """
 
+
+from typing import Callable
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi_users import BaseUserManager, IntegerIDMixin
 from fastapi_users.authentication import (
     AuthenticationBackend, BearerTransport, JWTStrategy
 )
+from fastapi_users.db import SQLAlchemyUserDatabase
 
+from src.db import User
 from src.settings import settings
+
+
+async def get_user_db_dependency(
+    session_dependency: Callable[[], AsyncSession]
+):
+    """
+    Зависимость для получения экземпляра базы данных пользователей.
+
+    Args:
+        session_dependency: Функция, возвращающая зависимость сессии БД.
+    """
+    session = await session_dependency()
+    try:
+        yield SQLAlchemyUserDatabase(session, User)
+    finally:
+        await session.close()
 
 
 """
@@ -53,3 +76,26 @@ auth_backend = AuthenticationBackend(
     transport=bearer_transport,
     get_strategy=get_jwt_strategy
 )
+
+
+class UserManager(BaseUserManager, IntegerIDMixin):
+    """
+    Менеджер пользователей для системы аутентификации DocAgent-mini.
+
+    Наследует базовую функциональность от BaseUserManager (fastapi-users)
+    и реализует поддержку целочисленных ID через IntegerIDMixin.
+
+    Отвечает за бизнес‑логику операций с пользователями:
+    - создание учётных записей;
+    - верификация email;
+    - сброс пароля;
+    - управление статусом учётной записи (активация, блокировка);
+    - генерация и валидация токенов для действий
+      (например, подтверждения email).
+
+    Интегрируется с:
+    - auth_backend: для реализации механизмов аутентификации;
+    - БД через модели (например, User): для сохранения и извлечения данных;
+    - транспортом (BearerTransport): для выдачи JWT‑токенов после успешной
+      аутентификации.
+    """

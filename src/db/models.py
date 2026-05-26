@@ -36,4 +36,3 @@ class User(SQLAlchemyBaseUserTable, Base):
         Для добавления кастомных полей (например, full_name, department)
         достаточно объявить их как Column внутри класса.
     """
-    pass

@@ -12,9 +12,15 @@ src.db.__init__
 для хранения данных пользователей, метаданных внутренней документации.
 """
 
-from src.db.relational_db import Base, get_providerDB
+from src.db.models import User
+from src.db.relational_db import (
+    Base, get_providerDB, create_async_session_dependency
+)
 from src.settings import settings
 
 providerDB = get_providerDB(settings)
 
-__all__ = ['Base', 'providerDB', 'get_providerDB']
+__all__ = [
+    'Base', 'providerDB', 'get_providerDB',
+    'create_async_session_dependency', 'User'
+]

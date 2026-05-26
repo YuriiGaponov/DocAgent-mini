@@ -15,6 +15,7 @@ src.db.relational_db
 """
 
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from sqlalchemy import Column, Integer
 from sqlalchemy.ext.asyncio import (
@@ -114,7 +115,7 @@ class ProviderDB:
 
     async def get_async_session(self) -> AsyncGenerator[AsyncSession, None]:
         """
-        Асинхронный контекстный менеджер для получения сессии БД.
+        Генератор асинхронных сессий БД.
 
         Создаёт и предоставляет асинхронную сессию в контексте async with.
 
@@ -140,3 +141,24 @@ def get_providerDB(settings: Settings) -> ProviderDB:
         ProviderDB: инициализированный провайдер БД.
     """
     return ProviderDB(settings)
+
+
+def create_async_session_dependency(provider_db: ProviderDB):
+    """
+    Создаёт зависимость для FastAPI на основе экземпляра ProviderDB.
+
+    Позволяет интегрировать асинхронные сессии SQLAlchemy в маршрутизацию
+    FastAPI через Dependency Injection. Возвращает асинхронный контекстный
+    менеджер, который предоставляет сессию БД для каждого запроса.
+
+    Args:
+        provider_db (ProviderDB): экземпляр провайдера БД.
+
+    Returns:
+        AsyncGenerator[AsyncSession, None]: асинхронный контекстный менеджер.
+    """
+    @asynccontextmanager
+    async def get_async_session():
+        async for session in provider_db.get_async_session():
+            yield session
+    return get_async_session
