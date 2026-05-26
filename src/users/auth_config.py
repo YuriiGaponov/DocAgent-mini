@@ -1,5 +1,5 @@
 """
-src.users.users_config
+src.users.auth_config
 
 Модуль конфигурации аутентификации для DocAgent-mini.
 

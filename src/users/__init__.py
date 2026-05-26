@@ -10,6 +10,6 @@ src.users.__init__
 - взаимодействие с FastAPI для реализации эндпоинтов.
 """
 
-from src.users.users_config import get_user_db_dependency
+from src.users.auth_config import get_user_db_dependency
 
 __all__ = ['get_user_db_dependency']
