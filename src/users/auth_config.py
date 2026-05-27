@@ -11,34 +11,33 @@ src.users.auth_config
 """
 
 
-from typing import Callable
-
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Depends
 from fastapi_users import BaseUserManager, FastAPIUsers, IntegerIDMixin
 from fastapi_users.authentication import (
     AuthenticationBackend, BearerTransport, JWTStrategy
 )
 from fastapi_users.db import SQLAlchemyUserDatabase
 
-from src.db import User
+from src.db import User, async_session_dependency
 from src.settings import settings
 
 
-async def get_user_db_dependency(
-    session_dependency: Callable[[], AsyncSession]
+async def get_user_db(
+        session: AsyncSession = Depends(async_session_dependency)
 ):
     """
-    Зависимость для получения экземпляра базы данных пользователей.
+    Зависимость для получения экземпляра адаптера базы данных пользователей.
 
     Args:
-        session_dependency: Функция, возвращающая зависимость сессии БД.
-    """
-    session = await session_dependency()
-    try:
-        yield SQLAlchemyUserDatabase(session, User)
-    finally:
-        await session.close()
+        session (AsyncSession): активная асинхронная сессия SQLAlchemy,
+            предоставляемая через зависимость async_session_dependency.
 
+    Yields:
+        SQLAlchemyUserDatabase: адаптер для выполнения CRUD‑операций
+            над записями пользователей в БД.
+    """
+    yield SQLAlchemyUserDatabase(session, User)
 
 """
 Транспорт для аутентификации по схеме Bearer.
@@ -101,29 +100,33 @@ class UserManager(BaseUserManager, IntegerIDMixin):
     """
 
 
-async def get_user_manager_dependency(
-    user_db_dependency: Callable[[], AsyncSession]
-):
+async def get_user_manager(user_db=Depends(get_user_db)):
     """
-    Зависимость для получения экземпляра менеджера пользователей в FastAPI.
+    Зависимость для получения экземпляра менеджера пользователей.
 
     Args:
-        user_db_dependency: Функция‑зависимость,
-            возвращающая экземпляр SQLAlchemyUserDatabase.
+        user_db (SQLAlchemyUserDatabase): адаптер БД, предоставляемый
+            через зависимость get_user_db.
+
+    Yields:
+        UserManager: менеджер пользователей, готовый к работе
+            с учётными записями (регистрация, обновление, верификация и т. д.).
     """
-    user_db = await user_db_dependency()
     yield UserManager(user_db)
 
 
-def get_fastapi_users(user_manager: Callable) -> FastAPIUsers:
-    """
-    Фабрика для создания экземпляра FastAPIUsers — центрального компонента
-    системы аутентификации.
+"""
+Экземпляр FastAPIUsers — центральный компонент системы управления
+пользователями.
 
-    Объединяет менеджер пользователей и бэкенды аутентификации в единый объект,
-    который предоставляет готовые эндпоинты для работы с пользователями
-    """
-    return FastAPIUsers(
-        get_user_manager=user_manager,
-        auth_backends=[auth_backend]
-    )
+Предоставляет набор готовых роутеров для интеграции в приложение FastAPI:
+- auth_router: эндпоинты аутентификации (логин, logout);
+- register_router: регистрация новых пользователей;
+- reset_password_router: восстановление пароля;
+- verify_email_router: подтверждение email;
+- users_router: управление учётными записями.
+"""
+fastapi_users = FastAPIUsers(
+    get_user_manager,
+    [auth_backend],
+)
