@@ -14,5 +14,9 @@ from src.users.auth_config import (
     auth_backend, get_user_db, get_user_manager,
     fastapi_users
 )
+from src.users.user_schemas import UserCreate, UserRead
 
-__all__ = ['auth_backend', 'fastapi_users', 'get_user_db', 'get_user_manager']
+__all__ = [
+    'auth_backend', 'fastapi_users', 'get_user_db', 'get_user_manager',
+    'UserCreate', 'UserRead'
+]
