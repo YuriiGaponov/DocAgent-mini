@@ -17,7 +17,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 
-from src import settings
+from src import router, settings
 from src.logger import app_logger as logger
 
 
@@ -65,3 +65,6 @@ app = FastAPI(
 )
 
 logger.debug(f'приложение {app.title} инициализировано')
+
+app.include_router(router)
+logger.debug('подключен роутер')

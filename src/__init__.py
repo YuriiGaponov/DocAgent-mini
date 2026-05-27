@@ -10,7 +10,8 @@ src.__init__
 отдельных компонентов.
 """
 
+from src.api import router
 from src.db import providerDB
 from src.settings import settings
 
-__all__ = ['providerDB', 'settings']
+__all__ = ['providerDB', 'router', 'settings']
