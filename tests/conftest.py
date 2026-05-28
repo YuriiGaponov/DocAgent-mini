@@ -60,3 +60,17 @@ def mock_providerDB(mock_settings):
 
     with patch("src.db.providerDB", mock_providerDB):
         yield mock_providerDB
+
+
+@pytest.fixture
+def mock_async_session_dependency(mock_providerDB):
+    """Фикстура - мок зависимости для получения асинхронной сессии БД."""
+    from src.db.relational_db import create_async_session_dependency
+    mock_async_session_dependency = create_async_session_dependency(
+        mock_providerDB
+    )
+
+    with patch(
+        "src.db.async_session_dependency", mock_async_session_dependency
+    ):
+        yield mock_async_session_dependency
