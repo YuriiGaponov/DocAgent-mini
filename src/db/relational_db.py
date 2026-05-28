@@ -15,7 +15,6 @@ src.db.relational_db
 """
 
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 
 from sqlalchemy import Column, Integer
 from sqlalchemy.ext.asyncio import (
@@ -155,10 +154,13 @@ def create_async_session_dependency(provider_db: ProviderDB):
         provider_db (ProviderDB): экземпляр провайдера БД.
 
     Returns:
-        AsyncGenerator[AsyncSession, None]: асинхронный контекстный менеджер.
+        Callable[[], AsyncSession]: функция‑зависимость, которая при вызове
+            создаёт и возвращает активную сессию AsyncSession.
     """
-    @asynccontextmanager
-    async def get_async_session():
-        async for session in provider_db.get_async_session():
-            yield session
+    async def get_async_session() -> AsyncSession:
+        async_session_maker = async_sessionmaker(
+            provider_db.get_async_engine(), expire_on_commit=False
+        )
+        async with async_session_maker() as session:
+            return session
     return get_async_session

@@ -41,7 +41,7 @@ def alembic_config():
 @pytest.fixture
 def mock_settings():
     """Фикстура - мок настроек приложения."""
-    with patch("src.settings.get_settings") as mock_get_settings:
+    with patch("src.settings.settings") as mock_get_settings:
         mock_settings = Settings(
             TITLE="Test DocAgent‑mini",
             DBMS="sqlite",
@@ -50,3 +50,13 @@ def mock_settings():
         )
         mock_get_settings.return_value = mock_settings
         yield mock_settings
+
+
+@pytest.fixture
+def mock_providerDB(mock_settings):
+    """Фикстура - мок глобального providerDB в src.db."""
+    from src.db.relational_db import get_providerDB
+    mock_providerDB = get_providerDB(mock_settings)
+
+    with patch("src.db.providerDB", mock_providerDB):
+        yield mock_providerDB
