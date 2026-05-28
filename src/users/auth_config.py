@@ -45,7 +45,9 @@ async def get_user_db(
 Используется для передачи JWT‑токенов в заголовках HTTP‑запросов.
 Определяет endpoint для получения токена (tokenUrl).
 """
-bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
+bearer_transport = BearerTransport(
+    tokenUrl=f"{settings.AUTH_JWT_URL_PREFIX}/login"
+)
 
 
 def get_jwt_strategy() -> JWTStrategy:

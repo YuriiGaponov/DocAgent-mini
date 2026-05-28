@@ -113,6 +113,9 @@ class Settings(BaseSettings):
     JWT_TOKEN_LIFETIME: PositiveInt = 3600
     """Время жизни JWT-токена в секундах."""
 
+    AUTH_JWT_URL_PREFIX: str = 'auth/jwt'
+    """Префикс эндпоинтов аутентификации по JWT-токену."""
+
     # Конфигурация получения настроек
     model_config = SettingsConfigDict(
         env_file=(BASE_DIR / f".env.{ENV_MODE}"),

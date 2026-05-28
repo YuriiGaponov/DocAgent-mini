@@ -11,6 +11,7 @@ src.api.endpoints.authentication
 
 from fastapi import APIRouter
 
+from src.settings import settings
 from src.users import auth_backend, fastapi_users, UserRead, UserCreate
 
 """Основной роутер аутентификации."""
@@ -22,7 +23,8 @@ router = APIRouter()
 Использует auth_backend для выдачи токенов.
 """
 router.include_router(
-    fastapi_users.get_auth_router(auth_backend)
+    fastapi_users.get_auth_router(auth_backend),
+    prefix=f'/{settings.AUTH_JWT_URL_PREFIX}'
 )
 
 """
@@ -31,5 +33,6 @@ router.include_router(
 Использует схемы UserCreate (вход) и UserRead (выход) для валидации данных.
 """
 router.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate)
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix=f'/{settings.AUTH_JWT_URL_PREFIX}'
 )
