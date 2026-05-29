@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import pytest
 from alembic import config
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from main import app
@@ -25,6 +26,15 @@ def client() -> TestClient:
     Возвращает экземпляр TestClient, инициализированный
     с приложением app из модуля main.
     """
+    return TestClient(app)
+
+
+@pytest.fixture
+def test_client() -> TestClient:
+    """
+    Фикстура для создания тестового клиента с чистым экземпляром FastAPI.
+    """
+    app = FastAPI()
     return TestClient(app)
 
 
