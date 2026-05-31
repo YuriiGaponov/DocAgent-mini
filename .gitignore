@@ -1,6 +1,8 @@
 __pycache__/
 data/*
 !data/__init__.py
+doc_storage/*
+!doc_storage/__init__.py
 .env*
 !.env.example
 logs/*

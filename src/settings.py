@@ -116,6 +116,10 @@ class Settings(BaseSettings):
     AUTH_JWT_URL_PREFIX: str = 'auth/jwt'
     """Префикс эндпоинтов аутентификации по JWT-токену."""
 
+    # === Хранилище внутренней документации ===
+    DOC_STORAGE: Path = BASE_DIR / 'doc_storage'
+    """Хранилище документации, с которой работает агент."""
+
     # Конфигурация получения настроек
     model_config = SettingsConfigDict(
         env_file=(BASE_DIR / f".env.{ENV_MODE}"),
