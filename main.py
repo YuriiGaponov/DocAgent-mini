@@ -17,7 +17,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 
-from src import router, settings
+from src import router, settings, tags_metadata
 from src.logger import app_logger as logger
 
 
@@ -61,6 +61,7 @@ app = FastAPI(
     title=settings.TITLE,
     description=settings.DESCRIPTION,
     version=settings.VERSION,
+    openapi_tags=tags_metadata,
     lifespan=lifespan
 )
 

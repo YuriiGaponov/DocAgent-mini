@@ -24,7 +24,8 @@ router = APIRouter()
 """
 router.include_router(
     fastapi_users.get_auth_router(auth_backend),
-    prefix=f'/{settings.AUTH_JWT_URL_PREFIX}'
+    prefix=f'/{settings.AUTH_JWT_URL_PREFIX}',
+    tags=["authentication"]
 )
 
 """
@@ -34,5 +35,6 @@ router.include_router(
 """
 router.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix=f'/{settings.AUTH_JWT_URL_PREFIX}'
+    prefix=f'/{settings.AUTH_JWT_URL_PREFIX}',
+    tags=["register"]
 )

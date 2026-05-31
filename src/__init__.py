@@ -12,6 +12,7 @@ src.__init__
 
 from src.api import router
 from src.db import providerDB
+from src.docs import tags_metadata
 from src.settings import settings
 
-__all__ = ['providerDB', 'router', 'settings']
+__all__ = ['providerDB', 'router', 'settings', 'tags_metadata']
