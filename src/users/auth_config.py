@@ -13,6 +13,7 @@ src.users.auth_config
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
+from fastapi_users.exceptions import InvalidID
 from fastapi_users import BaseUserManager, FastAPIUsers, IntegerIDMixin
 from fastapi_users.authentication import (
     AuthenticationBackend, BearerTransport, JWTStrategy
@@ -100,6 +101,12 @@ class UserManager(BaseUserManager, IntegerIDMixin):
     - транспортом (BearerTransport): для выдачи JWT‑токенов после успешной
       аутентификации.
     """
+    def parse_id(self, value):
+        """Преобразует строковое значение ID из токена в int."""
+        try:
+            return int(value)
+        except (ValueError, TypeError) as e:
+            raise InvalidID() from e
 
 
 async def get_user_manager(user_db=Depends(get_user_db)):

@@ -122,7 +122,7 @@ class TestAuthenticationEndpoints:
             "/auth/jwt/logout",
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
     @pytest.mark.anyio
     async def test_logout_without_token(self, db_enabled_test_client):
