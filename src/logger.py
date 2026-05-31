@@ -11,12 +11,9 @@ import logging
 from logging import Logger
 from logging.handlers import RotatingFileHandler
 
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger import json
 
-from src.settings import Settings, get_settings
-
-
-settings: Settings = get_settings()
+from src.settings import Settings, settings
 
 
 def get_logger(name: str, settings: Settings) -> Logger:
@@ -38,13 +35,13 @@ def get_logger(name: str, settings: Settings) -> Logger:
     logger.setLevel(settings.LOG_LEVEL)
 
     handler = RotatingFileHandler(
-        filename=settings.LOG_FILE_PATH,
+        filename=settings.LOG_FILE,
         maxBytes=5 * 1024 * 1024,
         backupCount=3,
         encoding=settings.ENCODING
     )
 
-    formatter = jsonlogger.JsonFormatter(
+    formatter = json.JsonFormatter(
         (
             "%(asctime)s %(name)s %(filename)s %(lineno)d %(levelname)s"
             "%(message)s"
@@ -58,8 +55,8 @@ def get_logger(name: str, settings: Settings) -> Logger:
     return logger
 
 
-app_logger = get_logger('app_logger', settings)
 """
-Экземпляр логгера для основного приложения.
+Главный логгер приложения.
 Использует настройки из модуля settings и форматирует логи в JSON.
 """
+app_logger = get_logger('app_logger', settings)

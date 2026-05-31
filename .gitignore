@@ -1,6 +1,8 @@
 __pycache__/
-docs/
-.env
+data/*
+!data/__init__.py
+.env*
+!.env.example
 logs/*
 !logs/__init__.py
 .pytest_cache/

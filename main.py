@@ -17,8 +17,8 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 
+from src import get_admin, router, settings, tags_metadata
 from src.logger import app_logger as logger
-from src.settings import get_settings
 
 
 logger.warning('НАЧАЛО РАБОТЫ')
@@ -55,14 +55,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     finally:
         logger.warning('ЗАВЕРШЕНИЕ РАБОТЫ')
 
-settings = get_settings()
 
 app = FastAPI(
     debug=settings.DEBUG,
     title=settings.TITLE,
     description=settings.DESCRIPTION,
     version=settings.VERSION,
+    openapi_tags=tags_metadata,
     lifespan=lifespan
 )
 
 logger.debug(f'приложение {app.title} инициализировано')
+
+app.include_router(router)
+logger.debug('подключен роутер')
+
+admin = get_admin(app)
+logger.debug('подключена роуадмин-панель')

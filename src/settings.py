@@ -12,16 +12,20 @@ src.settings
 """
 
 
+import os
 from pathlib import Path
 from typing import Literal
 
 
-from pydantic import computed_field
+from pydantic import PositiveInt, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 """Корневой путь проекта — директория, расположенная на уровень выше src."""
+
+ENV_MODE = os.getenv('ENVIRONMENT', 'development')
+"""Режим окружения: из ENVIRONMENT или 'development' по умолчанию."""
 
 
 class Settings(BaseSettings):
@@ -53,19 +57,16 @@ class Settings(BaseSettings):
 
     # === Настройки логирования ===
     LOG_DIR: Path = BASE_DIR / 'logs'
-    """str: Директория для хранения логов приложения. По умолчанию — 'logs'."""
+    """Path: Директория для логов приложения. По умолчанию — 'logs'."""
 
     LOG_FILENAME: str = 'app_log.log'
     """str: Имя файла логов. По умолчанию — 'app_log.log'."""
 
     @computed_field
     @property
-    def LOG_FILE_PATH(self) -> Path:
+    def LOG_FILE(self) -> Path:
         """
-        Вычисляет путь к файлу логов.
-
-        Если FULL_LOG_PATH задан — использует его.
-        Иначе формирует путь из LOG_DIR и LOG_FILENAME относительно BASE_DIR.
+        Формирует полное имя файла логов из LOG_DIR и LOG_FILENAME.
 
         Returns:
             Path: Полный путь к файлу логов.
@@ -93,16 +94,34 @@ class Settings(BaseSettings):
             return 'DEBUG'
         return self.MIN_LOG_LEVEL
 
+    # === Реляционная база данных ===
+    DBMS: Literal['sqlite'] = 'sqlite'
+    """str: СУБД реляционной базы данных."""
+
+    DB_DIR: Path = BASE_DIR / 'data'
+    """Path: Директория для Реляционной БД. По умолчанию — 'data'."""
+
+    DB_NAME: str = 'DocAgent-mini.db'
+    """str: Имя БД. По умолчанию — 'DocAgent-mini.db'."""
+
+    # === Авторизация ===
+    JWT_KEY_SECRET: str = 'SECRET'
+    """
+    Постоянный секретный ключ, который используется для кодирования JWT-токена.
+    """
+
+    JWT_TOKEN_LIFETIME: PositiveInt = 3600
+    """Время жизни JWT-токена в секундах."""
+
+    AUTH_JWT_URL_PREFIX: str = 'auth/jwt'
+    """Префикс эндпоинтов аутентификации по JWT-токену."""
+
     # Конфигурация получения настроек
     model_config = SettingsConfigDict(
-        env_file=(BASE_DIR / '.env'),
+        env_file=(BASE_DIR / f".env.{ENV_MODE}"),
         env_file_encoding='utf-8',
         extra='ignore'
     )
-
-
-_settings: Settings = Settings()
-"""Глобальный экземпляр настроек."""
 
 
 def get_settings() -> Settings:
@@ -115,4 +134,8 @@ def get_settings() -> Settings:
     Returns:
         Settings: Настроенный экземпляр класса настроек приложения.
     """
-    return _settings
+    return Settings()
+
+
+"""Глобальный экземпляр настроек."""
+settings = get_settings()
