@@ -17,7 +17,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 
-from src import router, settings, tags_metadata
+from src import get_admin, router, settings, tags_metadata
 from src.logger import app_logger as logger
 
 
@@ -69,3 +69,6 @@ logger.debug(f'приложение {app.title} инициализировано
 
 app.include_router(router)
 logger.debug('подключен роутер')
+
+admin = get_admin(app)
+logger.debug('подключена роуадмин-панель')
