@@ -6,12 +6,14 @@ tests.conftest
 Содержит фикстуры, используемые в тестах приложения.
 """
 
+from io import BytesIO
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 
 import pytest
 from alembic import config
 from fastapi.testclient import TestClient
+from starlette.datastructures import UploadFile
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from main import app
@@ -121,3 +123,34 @@ def mock_settings():
         )
         mock_get_settings.return_value = mock_settings
         yield mock_settings
+
+
+@pytest.fixture
+async def test_txt_file():
+    """
+    Фикстура: UploadFile-подобный объект для тестирования эндпоинтов,
+    принимающих файлы.
+    """
+    file_content = b"Content for UploadFile testing."
+    filename = "test_document.txt"
+    file_like = BytesIO(file_content)
+    file_like.seek(0)
+    upload_file = UploadFile(
+        filename=filename,
+        file=file_like,
+        content_type="text/plain"
+    )
+    return upload_file
+
+
+@pytest.fixture
+def mock_file_open():
+    """
+    Фикстура для мокирования встроенной функции open() при тестировании работы
+    с файлами.
+
+    Используется в тестах, где код открывает файлы
+    (через with open(...) или напрямую),
+    чтобы избежать реальных операций с файловой системой.
+    """
+    return mock_open()
